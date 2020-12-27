@@ -80,6 +80,8 @@ class BaseMenu(object):
         """
         User triggered enter event
         """
+        print(self.current_option)
+        print(str(self))
         action_result = self.items[self.current_option].action()
         if isinstance(action_result, BaseMenu):
             return action_result
