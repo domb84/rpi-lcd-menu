@@ -83,6 +83,8 @@ class BaseMenu(object):
         action_result = self.items[self.current_option].action()
         if isinstance(action_result, BaseMenu):
             return action_result
+        if hasattr(item, 'submenu') and isinstance(item.submenu, BaseMenu):
+            return action_result
         return self
 
     def exit(self):
