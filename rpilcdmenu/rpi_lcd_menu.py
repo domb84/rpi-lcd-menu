@@ -28,23 +28,23 @@ class RpiLCDMenu(BaseMenu):
         """ Send long string to LCD. 17th char wraps to second line"""
         print(text)
 
+        def render(render_text):
+            i = 0
+            lines = 0
+
+            for char in render_text:
+                if char == '\n':
+                    self.lcd.write4bits(0xC0)  # next line
+                    i = 0
+                    lines += 1
+                else:
+                    self.lcd.write4bits(ord(char), True)
+                    i = i + 1
+
+                if i == 16:
+                    self.lcd.write4bits(0xC0)  # last char of the line
+
         if autoscroll==True:
-
-            def render(render_text):
-                i = 0
-                lines = 0
-
-                for char in render_text:
-                    if char == '\n':
-                        self.lcd.write4bits(0xC0)  # next line
-                        i = 0
-                        lines += 1
-                    else:
-                        self.lcd.write4bits(ord(char), True)
-                        i = i + 1
-
-                    if i == 16:
-                        self.lcd.write4bits(0xC0)  # last char of the line
 
             try:
                 splitlines = text.split('\n')
@@ -74,45 +74,38 @@ class RpiLCDMenu(BaseMenu):
                 # scroll the message right to left
                 for index in range(1, text_length):
 
-                    # clear display before render
-                    self.clearDisplay()
 
                     # render at 16x2
                     fixed_text = self.render_16x2(text, index)
 
+                    # clear display before render
+                    self.clearDisplay()
+
+
                     render(fixed_text)
+
 
                 # render for 16x2
                 fixed_text = self.render_16x2(text, 0)
+
+                # clear display before render
+                self.clearDisplay()
 
                 # render the output
                 render(fixed_text)
 
                 return self
+
             except Exception as e:
                 print("Autoscroll error: %s" % e)
 
 
         else:
 
-            text = self.render_16x2(text, 0)
+            fixed_text = self.render_16x2(text, 0)
 
-            i = 0
-            lines = 0
-
-            for char in text:
-                if char == '\n':
-                    self.lcd.write4bits(0xC0)  # next line
-                    i = 0
-                    lines += 1
-                else:
-                    self.lcd.write4bits(ord(char), True)
-                    i = i + 1
-
-                if i == 16:
-                    self.lcd.write4bits(0xC0)  # last char of the line
-                elif lines == 2:
-                    break
+            # render the output
+            render(fixed_text)
 
             return self
 
