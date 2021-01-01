@@ -62,7 +62,13 @@ class RpiLCDMenu(BaseMenu):
             # render for 16x2 then
             # scroll the message right to left
             for index in range(1, text_length):
+
+                # clear display before render
+                self.clearDisplay()
+
+                # render at 16x2
                 text = self.render_16x2(text, index)
+
                 for char in text:
                     if char == '\n':
                         self.lcd.write4bits(0xC0)  # next line
@@ -77,6 +83,9 @@ class RpiLCDMenu(BaseMenu):
             return self
 
         else:
+
+            text = self.render_16x2(text)
+
             i = 0
             lines = 0
 
