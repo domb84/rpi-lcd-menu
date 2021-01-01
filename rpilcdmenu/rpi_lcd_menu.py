@@ -87,7 +87,7 @@ class RpiLCDMenu(BaseMenu):
 
         else:
 
-            text = self.render_16x2(text)
+            text = self.render_16x2(text, 0)
 
             i = 0
             lines = 0
