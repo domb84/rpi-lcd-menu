@@ -149,6 +149,8 @@ class RpiLCDMenu(BaseMenu):
 
 
     def render_16x2(self, text, index):
+        print("text input %s" % text)
+        print("index: %s" % index)
         try:
             lines = text.split('\n')
             line1 = lines[0]
