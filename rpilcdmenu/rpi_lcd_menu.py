@@ -26,6 +26,8 @@ class RpiLCDMenu(BaseMenu):
 
     def message(self, text, autoscroll=False):
         """ Send long string to LCD. 17th char wraps to second line"""
+        print(text)
+
         if autoscroll==True:
             try:
                 i = 0
