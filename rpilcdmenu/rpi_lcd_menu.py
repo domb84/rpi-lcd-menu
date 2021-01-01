@@ -29,26 +29,12 @@ class RpiLCDMenu(BaseMenu):
         print(text)
 
         if autoscroll==True:
-            try:
+
+            def render(render_text):
                 i = 0
                 lines = 0
 
-                splitlines = text.split('\n')
-
-                len1 = len(splitlines[0])
-                len2 = len(splitlines[1])
-
-                # add one to the longest length so it scrolls off screen
-                if len1 < len2:
-                    text_length = len2 + 1
-                else:
-                    text_length = len1 + 1
-
-                # render for 16x2
-                fixed_text = self.render_16x2(text, 0)
-
-                # show the text for one second
-                for char in fixed_text:
+                for char in render_text:
                     if char == '\n':
                         self.lcd.write4bits(0xC0)  # next line
                         i = 0
@@ -60,6 +46,28 @@ class RpiLCDMenu(BaseMenu):
                     if i == 16:
                         self.lcd.write4bits(0xC0)  # last char of the line
 
+            try:
+                splitlines = text.split('\n')
+
+                len1 = len(splitlines[0])
+                try:
+                    len2 = len(splitlines[1])
+                except:
+                    len2 = 0
+
+                # add one to the longest length so it scrolls off screen
+                if len1 < len2:
+                    text_length = len2 + 1
+                else:
+                    text_length = len1 + 1
+
+                # render for 16x2
+                fixed_text = self.render_16x2(text, 0)
+
+                # render the output
+                render(fixed_text)
+
+                # show the text for one second
                 sleep(1)
 
                 # render for 16x2 then
@@ -72,17 +80,14 @@ class RpiLCDMenu(BaseMenu):
                     # render at 16x2
                     fixed_text = self.render_16x2(text, index)
 
-                    for char in fixed_text:
-                        if char == '\n':
-                            self.lcd.write4bits(0xC0)  # next line
-                            i = 0
-                            lines += 1
-                        else:
-                            self.lcd.write4bits(ord(char), True)
-                            i = i + 1
+                    render(fixed_text)
 
-                        if i == 16:
-                            self.lcd.write4bits(0xC0)  # last char of the line
+                # render for 16x2
+                fixed_text = self.render_16x2(text, 0)
+
+                # render the output
+                render(fixed_text)
+
                 return self
             except Exception as e:
                 print("Autoscroll error: %s" % e)
@@ -149,8 +154,8 @@ class RpiLCDMenu(BaseMenu):
 
 
     def render_16x2(self, text, index):
-        print("text input %s" % text)
-        print("index: %s" % index)
+        # print("text input %s" % text)
+        # print("index: %s" % index)
         try:
             lines = text.split('\n')
             line1 = lines[0]
