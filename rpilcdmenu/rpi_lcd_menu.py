@@ -154,7 +154,10 @@ class RpiLCDMenu(BaseMenu):
         try:
             lines = text.split('\n')
             line1 = lines[0]
-            line2 = lines[1]
+            try:
+                line2 = lines[1]
+            except:
+                line2 = ''
             last_char = index + 15
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
