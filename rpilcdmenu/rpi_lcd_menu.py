@@ -27,48 +27,25 @@ class RpiLCDMenu(BaseMenu):
     def message(self, text, autoscroll=False):
         """ Send long string to LCD. 17th char wraps to second line"""
         if autoscroll:
-            i = 0
-            lines = 0
+            try:
+                i = 0
+                lines = 0
 
-            splitlines = text.split('\n')
+                splitlines = text.split('\n')
 
-            len1 = len(splitlines[0])
-            len2 = len(splitlines[1])
+                len1 = len(splitlines[0])
+                len2 = len(splitlines[1])
 
-            # add one to the longest length so it scrolls off screen
-            if len1 < len2:
-                text_length = len2 + 1
-            else:
-                text_length = len1 + 1
-
-            # render for 16x2
-            fixed_text = self.render_16x2(text, 0)
-
-            # show the text for one second
-            for char in fixed_text:
-                if char == '\n':
-                    self.lcd.write4bits(0xC0)  # next line
-                    i = 0
-                    lines += 1
+                # add one to the longest length so it scrolls off screen
+                if len1 < len2:
+                    text_length = len2 + 1
                 else:
-                    self.lcd.write4bits(ord(char), True)
-                    i = i + 1
+                    text_length = len1 + 1
 
-                if i == 16:
-                    self.lcd.write4bits(0xC0)  # last char of the line
+                # render for 16x2
+                fixed_text = self.render_16x2(text, 0)
 
-            sleep(1)
-
-            # render for 16x2 then
-            # scroll the message right to left
-            for index in range(1, text_length):
-
-                # clear display before render
-                self.clearDisplay()
-
-                # render at 16x2
-                fixed_text = self.render_16x2(text, index)
-
+                # show the text for one second
                 for char in fixed_text:
                     if char == '\n':
                         self.lcd.write4bits(0xC0)  # next line
@@ -80,7 +57,33 @@ class RpiLCDMenu(BaseMenu):
 
                     if i == 16:
                         self.lcd.write4bits(0xC0)  # last char of the line
-            return self
+
+                sleep(1)
+
+                # render for 16x2 then
+                # scroll the message right to left
+                for index in range(1, text_length):
+
+                    # clear display before render
+                    self.clearDisplay()
+
+                    # render at 16x2
+                    fixed_text = self.render_16x2(text, index)
+
+                    for char in fixed_text:
+                        if char == '\n':
+                            self.lcd.write4bits(0xC0)  # next line
+                            i = 0
+                            lines += 1
+                        else:
+                            self.lcd.write4bits(ord(char), True)
+                            i = i + 1
+
+                        if i == 16:
+                            self.lcd.write4bits(0xC0)  # last char of the line
+                return self
+            except:
+                print("Error with modifications")
 
         else:
 
@@ -142,7 +145,7 @@ class RpiLCDMenu(BaseMenu):
         return self
 
 
-    def render_16x2(self, text, index=0):
+    def render_16x2(self, text, index):
         try:
             lines = text.split('\n')
             line1 = lines[0]
@@ -152,4 +155,4 @@ class RpiLCDMenu(BaseMenu):
             line2_vfd = "{:<16}".format(line2[index:last_char])
             return ("%s\n%s" % (line1_vfd, line2_vfd))
         except Exception as e:
-            return (e)
+            print(e)
