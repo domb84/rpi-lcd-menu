@@ -42,10 +42,10 @@ class RpiLCDMenu(BaseMenu):
                 text_length = len1 + 1
 
             # render for 16x2
-            text = self.render_16x2(text)
+            fixed_text = self.render_16x2(text, 0)
 
             # show the text for one second
-            for char in text:
+            for char in fixed_text:
                 if char == '\n':
                     self.lcd.write4bits(0xC0)  # next line
                     i = 0
@@ -67,9 +67,9 @@ class RpiLCDMenu(BaseMenu):
                 self.clearDisplay()
 
                 # render at 16x2
-                text = self.render_16x2(text, index)
+                fixed_text = self.render_16x2(text, index)
 
-                for char in text:
+                for char in fixed_text:
                     if char == '\n':
                         self.lcd.write4bits(0xC0)  # next line
                         i = 0
