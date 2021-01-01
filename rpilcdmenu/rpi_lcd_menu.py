@@ -1,6 +1,8 @@
+from time import sleep
+
 from rpilcdmenu.base_menu import BaseMenu
 from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
-from time import sleep
+
 
 class RpiLCDMenu(BaseMenu):
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None):
@@ -28,7 +30,7 @@ class RpiLCDMenu(BaseMenu):
         """ Send long string to LCD. 17th char wraps to second line"""
         print(text)
 
-        def render(render_text):
+        def lcd_render(render_text):
             i = 0
             lines = 0
 
@@ -65,7 +67,7 @@ class RpiLCDMenu(BaseMenu):
                 fixed_text = self.render_16x2(text, 0)
 
                 # render the output
-                render(fixed_text)
+                lcd_render(fixed_text)
 
                 # show the text for one second
                 sleep(1)
@@ -82,7 +84,7 @@ class RpiLCDMenu(BaseMenu):
                     self.clearDisplay()
 
                     # render the output
-                    render(fixed_text)
+                    lcd_render(fixed_text)
 
                     # wait a little between renders
                     sleep(0.05)
@@ -95,7 +97,7 @@ class RpiLCDMenu(BaseMenu):
                 self.clearDisplay()
 
                 # render the output
-                render(fixed_text)
+                lcd_render(fixed_text)
 
                 return self
 
@@ -108,7 +110,7 @@ class RpiLCDMenu(BaseMenu):
             fixed_text = self.render_16x2(text, 0)
 
             # render the output
-            render(fixed_text)
+            lcd_render(fixed_text)
 
             return self
 
