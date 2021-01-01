@@ -84,8 +84,9 @@ class RpiLCDMenu(BaseMenu):
                         if i == 16:
                             self.lcd.write4bits(0xC0)  # last char of the line
                 return self
-            except:
-                print("Error with modifications")
+            except Exception as e:
+                print("Autoscroll error: %s" % e)
+
 
         else:
 
@@ -157,4 +158,4 @@ class RpiLCDMenu(BaseMenu):
             line2_vfd = "{:<16}".format(line2[index:last_char])
             return ("%s\n%s" % (line1_vfd, line2_vfd))
         except Exception as e:
-            print(e)
+            print("Render error: %s" % e)
