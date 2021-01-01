@@ -72,8 +72,8 @@ class RpiLCDMenu(BaseMenu):
 
                 # render for 16x2 then
                 # scroll the message right to left
+                # start 1 character in as we've already rendered the first character
                 for index in range(1, text_length):
-
 
                     # render at 16x2
                     fixed_text = self.render_16x2(text, index)
@@ -81,8 +81,11 @@ class RpiLCDMenu(BaseMenu):
                     # clear display before render
                     self.clearDisplay()
 
-
+                    # render the output
                     render(fixed_text)
+
+                    # wait a little between renders
+                    sleep(0.05)
 
 
                 # render for 16x2
