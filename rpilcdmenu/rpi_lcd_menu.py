@@ -231,5 +231,4 @@ class RpiLCDMenu(BaseMenu):
             args = items[1:]
             func(*args)
 
-    lcd_thread = threading.Thread(target=lcd_queue_processor)
-    lcd_thread.start()
+    lcd_queue_processor()
