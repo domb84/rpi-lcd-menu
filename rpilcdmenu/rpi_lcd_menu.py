@@ -84,6 +84,7 @@ class RpiLCDMenu(BaseMenu):
 
             # print("Final text is: %s" % final_text)
 
+            # TODO needs to be interruptable somehow
             if autoscroll == True:
                 # add one to the longest length so it scrolls off screen
                 if len1 < len2:
@@ -166,7 +167,7 @@ class RpiLCDMenu(BaseMenu):
             if len(self.items) == 2:
                 options += "\n" + (self.current_option == 1 and ">" or " ") + self.items[1].text
             print(options)
-            if self.scrolling_menu:
+            if self.scrolling_menu == True:
                 self.message(options, autoscroll=True)
             else:
                 self.message(options)
@@ -179,7 +180,7 @@ class RpiLCDMenu(BaseMenu):
         else:
             options += "\n " + self.items[0].text
 
-        if self.scrolling_menu:
+        if self.scrolling_menu == True:
             self.message(options, autoscroll=True)
         else:
             self.message(options)
