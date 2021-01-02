@@ -28,8 +28,6 @@ class RpiLCDMenu(BaseMenu):
 
     def message(self, text, autoscroll=False):
         """ Send long string to LCD. 17th char wraps to second line"""
-        print(text)
-
         def lcd_render(render_text):
             i = 0
             lines = 0
@@ -83,7 +81,7 @@ class RpiLCDMenu(BaseMenu):
                 len2 = len(splitlines[1])
                 final_text = text
 
-            print("Final text is: %s" % final_text)
+            # print("Final text is: %s" % final_text)
 
             if autoscroll == True:
                 # add one to the longest length so it scrolls off screen
