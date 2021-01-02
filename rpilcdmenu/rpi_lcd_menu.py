@@ -70,7 +70,8 @@ class RpiLCDMenu(BaseMenu):
                         #  render nothing if theres nothing on line 2
                         line2 = ''
 
-                    # set lenth of line 2
+                    # recalculate lengths
+                    len1 = len(line1)
                     len2 = len(line2)
                     final_text = ("%s\n%s" % (line1, line2))
 
@@ -80,6 +81,7 @@ class RpiLCDMenu(BaseMenu):
                     len2 = len(splitlines[1])
                     final_text = text
 
+                # TODO process more than 2 lines. Currently they just get cropped.
                 else:
                     len1 = len(splitlines[0])
                     len2 = len(splitlines[1])
@@ -115,7 +117,7 @@ class RpiLCDMenu(BaseMenu):
                     lcd_render(fixed_text)
 
                     # wait a little between renders
-                    sleep(0.05)
+                    sleep(0.025)
 
 
                 # render for 16x2
