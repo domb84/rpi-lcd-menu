@@ -61,25 +61,24 @@ class RpiLCDMenu(BaseMenu):
                     # split it in half
                     line2 = line1[half:]
                     line1 = line1[0:half]
-                    # print("line 1: %s" % line1)
-                    # print("line 2: %s" % line2)
                 else:
-                    #  render nothing if theres nothing on line 2
+                    #  line 2 is nothing if line1 is not more than 16 characters
                     line2 = ''
 
-                # recalculate lengths
+                # recalculate lengths for scoller
                 len1 = len(line1)
                 len2 = len(line2)
                 final_text = ("%s\n%s" % (line1, line2))
 
             # process 2 lines
             elif len(splitlines) == 2:
+                # set lengeths for scoller but other wise leave the text
                 len1 = len(splitlines[0])
                 len2 = len(splitlines[1])
                 final_text = text
 
-            # TODO process more than 2 lines. Currently they just get cropped.
             else:
+                # TODO process more than 2 lines. Currently they just get cropped.
                 len1 = len(splitlines[0])
                 len2 = len(splitlines[1])
                 final_text = text
@@ -95,14 +94,11 @@ class RpiLCDMenu(BaseMenu):
 
                 # render for 16x2
                 fixed_text = self.render_16x2(final_text)
-
                 # render the output
                 lcd_render(fixed_text)
-
                 # show the text for one second
                 sleep(1)
 
-                # render for 16x2 then
                 # scroll the message right to left
                 # start 1 character in as we've already rendered the first character
                 for index in range(1, text_length):
@@ -132,7 +128,7 @@ class RpiLCDMenu(BaseMenu):
                 return self
 
             else:
-                # TODO need to calculate this the same way as for autoscroll ie split it in 2
+                # just show the text if theres no autoscroll
                 fixed_text = self.render_16x2(final_text)
 
                 # render the output
@@ -181,35 +177,18 @@ class RpiLCDMenu(BaseMenu):
         return self
 
     def render_16x2(self, text, index=0):
-        # render incoming text as 16x2
+
+        # incoming text will already have been cleaned up and split with a line break
+        # by the message function
+
+        # render incoming text as 16x2 by taking the starting index and adding 16
+        # for each line
+
         try:
             lines = text.split('\n')
-            #
-            # # process a single line
-            # if len(lines) < 2:
-            #     line1 = lines[0]
-            #
-            #     # if theres one line and its longer than 16 characters, split it onto line 2
-            #     if len(line1) > 16:
-            #         line2 = line1[16:32]
-            #         line1 = line1[0:16]
-            #         print("line 1: %s" % line1)
-            #         print("line 2: %s" % line2)
-            #     else:
-            #         #  render nothing if theres nothing on line 2
-            #         line2 = ''
-            #
-            # # process 2 lines
-            # elif len(lines) == 2:
-            #     line1 = lines[0]
-            #     line2 = lines[1]
-            #
-            # # TODO deal with more than 3 lines. For now just deal with the first 2.
-            # else:
             line1 = lines[0]
             line2 = lines[1]
-            #
-            # # pad out the text if its less than 16 characters  long
+            # pad out the text if its less than 16 characters  long
             last_char = index + 16
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
