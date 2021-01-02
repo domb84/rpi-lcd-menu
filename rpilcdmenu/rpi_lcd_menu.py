@@ -113,7 +113,7 @@ class RpiLCDMenu(BaseMenu):
                         fixed_text = self.render_16x2(final_text, index)
 
                         # clear display before render
-                        self.clearDisplay()
+                        # self.clearDisplay()
 
                         # render the output
                         lcd_render(fixed_text)
@@ -205,6 +205,7 @@ class RpiLCDMenu(BaseMenu):
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
 
+            print("Final text for output:\n%s\n%s" % (line1_vfd, line2_vfd))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
 
