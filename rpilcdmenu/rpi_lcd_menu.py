@@ -58,7 +58,8 @@ class RpiLCDMenu(BaseMenu):
                     # if theres one line and its longer than 16 characters, split it onto line 2
                     len1 = len(line1)
                     if len1 > 16:
-                        half = (len1 / 2)
+                        #  // will return an integer
+                        half = (len1 // 2)
                         print("Half of line 1 is: %s" % half)
                         # split it in half
                         line2 = line1[half:]
