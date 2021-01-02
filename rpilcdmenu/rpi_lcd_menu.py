@@ -1,5 +1,5 @@
-import queue
 import threading
+from Queue import Queue
 from time import sleep
 
 from rpilcdmenu.base_menu import BaseMenu
@@ -11,7 +11,7 @@ class RpiLCDMenu(BaseMenu):
         """
         Initialize menu
         """
-        self.lcd_queue = queue()
+        self.lcd_queue = Queue()
         self.scrolling_menu = scrolling_menu
         self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
 
