@@ -1,5 +1,5 @@
 import queue
-import thread
+import threading
 from time import sleep
 
 from rpilcdmenu.base_menu import BaseMenu
@@ -224,11 +224,12 @@ class RpiLCDMenu(BaseMenu):
         except Exception as e:
             print("Render error: %s" % e)
 
-    def lcd_queue_thread(a):
+    def lcd_queue_processor(a):
         while True:
             items = self.lcd_queue.get()
             func = items[0]
             args = items[1:]
             func(*args)
 
-    start_new_thread(lcd_queue_thread, (0,))
+    lcd_thread = threading.Thread(target=lcd_queue_processor)
+    lcd_thread.start()
