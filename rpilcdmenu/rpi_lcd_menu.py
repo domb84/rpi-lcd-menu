@@ -64,7 +64,7 @@ class RpiLCDMenu(BaseMenu):
                     text_length = len1 + 1
 
                 # render for 16x2
-                fixed_text = self.render_16x2(text, 0)
+                fixed_text = self.render_16x2(text)
 
                 # render the output
                 lcd_render(fixed_text)
@@ -91,7 +91,7 @@ class RpiLCDMenu(BaseMenu):
 
 
                 # render for 16x2
-                fixed_text = self.render_16x2(text, 0)
+                fixed_text = self.render_16x2(text)
 
                 # clear display before render
                 self.clearDisplay()
@@ -107,7 +107,7 @@ class RpiLCDMenu(BaseMenu):
 
         else:
 
-            fixed_text = self.render_16x2(text, 0)
+            fixed_text = self.render_16x2(text)
 
             # render the output
             lcd_render(fixed_text)
@@ -150,19 +150,50 @@ class RpiLCDMenu(BaseMenu):
 
         return self
 
-
-    def render_16x2(self, text, index):
+    def render_16x2(self, text, index=0):
         # render incoming text as 16x2
         try:
             lines = text.split('\n')
-            line1 = lines[0]
-            try:
+
+            # process a single line
+            if len(lines) < 2:
+                line1 = lines[0]
+
+                # if theres one line and its longer than 16 characters, split it onto  line 2
+                if len(line1) > 16:
+                    line2 = line1[16:31]
+                    line1 = line1[:15]
+                else:
+                    #  render nothing if theres nothing on line 2
+                    line2 = ''
+
+            # process 2 lines
+            elif len(lines) == 2:
+                line1 = lines[0]
                 line2 = lines[1]
-            except:
-                line2 = ''
+
+            # TODO deal with more than 3 lines. For now just deal with the first 2.
+            else:
+                line1 = lines[0]
+                line2 = lines[1]
+
+            # pad out the text if its less than 16 characters  long
             last_char = index + 15
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
+
             return ("%s\n%s" % (line1_vfd, line2_vfd))
+
+            # line1 = lines[0]
+            # try:
+            #     line2 = lines[1]
+            # except:
+            #     line2 = ''
+            # last_char = index + 15
+            # line1_vfd = "{:<16}".format(line1[index:last_char])
+            # line2_vfd = "{:<16}".format(line2[index:last_char])
+            # return ("%s\n%s" % (line1_vfd, line2_vfd))
+
+
         except Exception as e:
             print("Render error: %s" % e)
