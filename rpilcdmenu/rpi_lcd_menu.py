@@ -58,12 +58,11 @@ class RpiLCDMenu(BaseMenu):
                 if len1 > 16:
                     #  // will return an integer
                     half = (len1 // 2)
-                    print("Half of line 1 is: %s" % half)
                     # split it in half
                     line2 = line1[half:]
                     line1 = line1[0:half]
-                    print("line 1: %s" % line1)
-                    print("line 2: %s" % line2)
+                    # print("line 1: %s" % line1)
+                    # print("line 2: %s" % line2)
                 else:
                     #  render nothing if theres nothing on line 2
                     line2 = ''
@@ -84,6 +83,8 @@ class RpiLCDMenu(BaseMenu):
                 len1 = len(splitlines[0])
                 len2 = len(splitlines[1])
                 final_text = text
+
+            print("Final text is: %s" % final_text)
 
             if autoscroll == True:
                 # add one to the longest length so it scrolls off screen
@@ -182,7 +183,7 @@ class RpiLCDMenu(BaseMenu):
     def render_16x2(self, text, index=0):
         # render incoming text as 16x2
         try:
-            # lines = text.split('\n')
+            lines = text.split('\n')
             #
             # # process a single line
             # if len(lines) < 2:
@@ -205,8 +206,8 @@ class RpiLCDMenu(BaseMenu):
             #
             # # TODO deal with more than 3 lines. For now just deal with the first 2.
             # else:
-            #     line1 = lines[0]
-            #     line2 = lines[1]
+            line1 = lines[0]
+            line2 = lines[1]
             #
             # # pad out the text if its less than 16 characters  long
             last_char = index + 16
