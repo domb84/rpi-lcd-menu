@@ -17,6 +17,7 @@ class RpiLCDMenu(BaseMenu):
 
         self.lcd.initDisplay()
         # self.clearDisplay()
+        self.lcd_queue_processor()
 
         super(self.__class__, self).__init__()
 
@@ -230,5 +231,3 @@ class RpiLCDMenu(BaseMenu):
             func = items[0]
             args = items[1:]
             func(*args)
-
-    self.lcd_queue_processor()
