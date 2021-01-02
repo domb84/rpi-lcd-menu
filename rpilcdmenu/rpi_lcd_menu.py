@@ -33,7 +33,7 @@ class RpiLCDMenu(BaseMenu):
             i = 0
             lines = 0
 
-            # move cursor
+            # return home rather thanclear the display
             self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
 
             for char in render_text:
@@ -122,7 +122,7 @@ class RpiLCDMenu(BaseMenu):
                         lcd_render(fixed_text)
 
                         # wait a little between renders
-                        sleep(0.025)
+                        sleep(0.005)
 
                     # render for 16x2
                     fixed_text = self.render_16x2(final_text)
@@ -160,7 +160,8 @@ class RpiLCDMenu(BaseMenu):
         """
         Render menu
         """
-        self.clearDisplay()
+        # return home rather thanclear the display
+        self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
 
         if len(self.items) == 0:
             self.message('Menu is empty')
