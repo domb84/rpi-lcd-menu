@@ -17,7 +17,7 @@ class RpiLCDMenu(BaseMenu):
         self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
         self.lcd.initDisplay()
 
-        self.lcd_queue_processor()
+        # self.lcd_queue_processor()
         super(self.__class__, self).__init__()
 
     def clearDisplay(self):
@@ -124,8 +124,8 @@ class RpiLCDMenu(BaseMenu):
                         # self.clearDisplay()
 
                         # render the output
-                        # lcd_render(fixed_text)
-                        self.lcd_queue.put(lcd_render, fixed_text)
+                        lcd_render(fixed_text)
+                        # self.lcd_queue.put(lcd_render, fixed_text)
 
                         # wait a little between renders
                         sleep(0.005)
@@ -224,11 +224,11 @@ class RpiLCDMenu(BaseMenu):
         except Exception as e:
             print("Render error: %s" % e)
 
-    def lcd_queue_processor(self):
-        print("queue started")
-        while True:
-            print("running")
-            items = self.lcd_queue.get()
-            func = items[0]
-            args = items[1:]
-            func(*args)
+    # def lcd_queue_processor(self):
+    #     print("queue started")
+    #     while True:
+    #         print("running")
+    #         items = self.lcd_queue.get()
+    #         func = items[0]
+    #         args = items[1:]
+    #         func(*args)
