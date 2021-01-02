@@ -46,47 +46,46 @@ class RpiLCDMenu(BaseMenu):
                 if i == 16:
                     self.lcd.write4bits(0xC0)  # last char of the line
 
-        if autoscroll==True:
+        try:
+            splitlines = text.split('\n')
 
-            try:
-                splitlines = text.split('\n')
+            # process a single line
+            if len(splitlines) < 2:
+                line1 = splitlines[0]
 
-                # process a single line
-                if len(splitlines) < 2:
-                    line1 = splitlines[0]
-
-                    # if theres one line and its longer than 16 characters, split it onto line 2
-                    len1 = len(line1)
-                    if len1 > 16:
-                        #  // will return an integer
-                        half = (len1 // 2)
-                        print("Half of line 1 is: %s" % half)
-                        # split it in half
-                        line2 = line1[half:]
-                        line1 = line1[0:half]
-                        print("line 1: %s" % line1)
-                        print("line 2: %s" % line2)
-                    else:
-                        #  render nothing if theres nothing on line 2
-                        line2 = ''
-
-                    # recalculate lengths
-                    len1 = len(line1)
-                    len2 = len(line2)
-                    final_text = ("%s\n%s" % (line1, line2))
-
-                # process 2 lines
-                elif len(splitlines) == 2:
-                    len1 = len(splitlines[0])
-                    len2 = len(splitlines[1])
-                    final_text = text
-
-                # TODO process more than 2 lines. Currently they just get cropped.
+                # if theres one line and its longer than 16 characters, split it onto line 2
+                len1 = len(line1)
+                if len1 > 16:
+                    #  // will return an integer
+                    half = (len1 // 2)
+                    print("Half of line 1 is: %s" % half)
+                    # split it in half
+                    line2 = line1[half:]
+                    line1 = line1[0:half]
+                    print("line 1: %s" % line1)
+                    print("line 2: %s" % line2)
                 else:
-                    len1 = len(splitlines[0])
-                    len2 = len(splitlines[1])
-                    final_text = text
+                    #  render nothing if theres nothing on line 2
+                    line2 = ''
 
+                # recalculate lengths
+                len1 = len(line1)
+                len2 = len(line2)
+                final_text = ("%s\n%s" % (line1, line2))
+
+            # process 2 lines
+            elif len(splitlines) == 2:
+                len1 = len(splitlines[0])
+                len2 = len(splitlines[1])
+                final_text = text
+
+            # TODO process more than 2 lines. Currently they just get cropped.
+            else:
+                len1 = len(splitlines[0])
+                len2 = len(splitlines[1])
+                final_text = text
+
+            if autoscroll == True:
                 # add one to the longest length so it scrolls off screen
                 if len1 < len2:
                     text_length = len2 + 1
@@ -121,7 +120,7 @@ class RpiLCDMenu(BaseMenu):
 
 
                 # render for 16x2
-                fixed_text = self.render_16x2(text)
+                fixed_text = self.render_16x2(final_text)
 
                 # clear display before render
                 self.clearDisplay()
@@ -131,18 +130,18 @@ class RpiLCDMenu(BaseMenu):
 
                 return self
 
-            except Exception as e:
-                print("Autoscroll error: %s" % e)
+            else:
+                # TODO need to calculate this the same way as for autoscroll ie split it in 2
+                fixed_text = self.render_16x2(final_text)
+
+                # render the output
+                lcd_render(fixed_text)
+
+                return self
 
 
-        else:
-
-            fixed_text = self.render_16x2(text)
-
-            # render the output
-            lcd_render(fixed_text)
-
-            return self
+        except Exception as e:
+            print("Autoscroll error: %s" % e)
 
     def displayTestScreen(self):
         """
@@ -183,33 +182,33 @@ class RpiLCDMenu(BaseMenu):
     def render_16x2(self, text, index=0):
         # render incoming text as 16x2
         try:
-            lines = text.split('\n')
-
-            # process a single line
-            if len(lines) < 2:
-                line1 = lines[0]
-
-                # if theres one line and its longer than 16 characters, split it onto line 2
-                if len(line1) > 16:
-                    line2 = line1[16:32]
-                    line1 = line1[0:16]
-                    print("line 1: %s" % line1)
-                    print("line 2: %s" % line2)
-                else:
-                    #  render nothing if theres nothing on line 2
-                    line2 = ''
-
-            # process 2 lines
-            elif len(lines) == 2:
-                line1 = lines[0]
-                line2 = lines[1]
-
-            # TODO deal with more than 3 lines. For now just deal with the first 2.
-            else:
-                line1 = lines[0]
-                line2 = lines[1]
-
-            # pad out the text if its less than 16 characters  long
+            # lines = text.split('\n')
+            #
+            # # process a single line
+            # if len(lines) < 2:
+            #     line1 = lines[0]
+            #
+            #     # if theres one line and its longer than 16 characters, split it onto line 2
+            #     if len(line1) > 16:
+            #         line2 = line1[16:32]
+            #         line1 = line1[0:16]
+            #         print("line 1: %s" % line1)
+            #         print("line 2: %s" % line2)
+            #     else:
+            #         #  render nothing if theres nothing on line 2
+            #         line2 = ''
+            #
+            # # process 2 lines
+            # elif len(lines) == 2:
+            #     line1 = lines[0]
+            #     line2 = lines[1]
+            #
+            # # TODO deal with more than 3 lines. For now just deal with the first 2.
+            # else:
+            #     line1 = lines[0]
+            #     line2 = lines[1]
+            #
+            # # pad out the text if its less than 16 characters  long
             last_char = index + 16
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
