@@ -113,7 +113,7 @@ class RpiLCDMenu(BaseMenu):
                         fixed_text = self.render_16x2(final_text, index)
 
                         # clear display before render
-                        # self.clearDisplay()
+                        self.clearDisplay()
 
                         # render the output
                         lcd_render(fixed_text)
@@ -201,11 +201,11 @@ class RpiLCDMenu(BaseMenu):
             line1 = lines[0]
             line2 = lines[1]
             # pad out the text if its less than 16 characters  long
-            last_char = index + 15
+            last_char = index + 16
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
 
-            print("Final text for output:\n%s\n%s" % (line1_vfd, line2_vfd))
+            print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
 
