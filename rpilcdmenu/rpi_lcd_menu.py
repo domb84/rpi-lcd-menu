@@ -5,11 +5,12 @@ from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
 
 
 class RpiLCDMenu(BaseMenu):
-    def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None):
+    def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None, scrolling_menu=False):
         """
         Initialize menu
         """
 
+        self.scrolling_menu = scrolling_menu
         self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
 
         self.lcd.initDisplay()
@@ -165,7 +166,10 @@ class RpiLCDMenu(BaseMenu):
             if len(self.items) == 2:
                 options += "\n" + (self.current_option == 1 and ">" or " ") + self.items[1].text
             print(options)
-            self.message(options)
+            if self.scrolling_menu:
+                self.message(options, autoscroll=True)
+            else:
+                self.message(options)
             return self
 
         options = ">" + self.items[self.current_option].text
@@ -175,7 +179,10 @@ class RpiLCDMenu(BaseMenu):
         else:
             options += "\n " + self.items[0].text
 
-        self.message(options)
+        if self.scrolling_menu:
+            self.message(options, autoscroll=True)
+        else:
+            self.message(options)
 
         return self
 
