@@ -13,9 +13,7 @@ class RpiLCDMenu(BaseMenu):
         """
         self.lcd_queue = queue.LifoQueue(maxsize=0)
         self.scrolling_menu = scrolling_menu
-        self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
 
-        self.lcd.initDisplay()
         # self.clearDisplay()
         self.lcd_queue_processor()
 
@@ -227,6 +225,8 @@ class RpiLCDMenu(BaseMenu):
 
     def lcd_queue_processor(self):
         print("queue started")
+        self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
+        self.lcd.initDisplay()
         while True:
             print("running")
             items = self.lcd_queue.get()
