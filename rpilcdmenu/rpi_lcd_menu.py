@@ -1,3 +1,5 @@
+import queue
+import thread
 from time import sleep
 
 from rpilcdmenu.base_menu import BaseMenu
@@ -9,7 +11,7 @@ class RpiLCDMenu(BaseMenu):
         """
         Initialize menu
         """
-
+        self.lcd_queue = Queue()
         self.scrolling_menu = scrolling_menu
         self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
 
@@ -100,7 +102,8 @@ class RpiLCDMenu(BaseMenu):
                 # render for 16x2
                 fixed_text = self.render_16x2(final_text)
                 # render the output
-                lcd_render(fixed_text)
+                # lcd_render(fixed_text)
+                self.lcd_queue.put(lcd_render, fixed_text)
 
                 # only scroll if needed
                 if text_length > 16:
@@ -121,7 +124,8 @@ class RpiLCDMenu(BaseMenu):
                         # self.clearDisplay()
 
                         # render the output
-                        lcd_render(fixed_text)
+                        # lcd_render(fixed_text)
+                        self.lcd_queue.put(lcd_render, fixed_text)
 
                         # wait a little between renders
                         sleep(0.005)
@@ -133,7 +137,8 @@ class RpiLCDMenu(BaseMenu):
                     # self.clearDisplay()
 
                     # render the output
-                    lcd_render(fixed_text)
+                    # lcd_render(fixed_text)
+                    self.lcd_queue.put(lcd_render, fixed_text)
 
                 return self
 
@@ -142,7 +147,8 @@ class RpiLCDMenu(BaseMenu):
                 fixed_text = self.render_16x2(final_text)
 
                 # render the output
-                lcd_render(fixed_text)
+                # lcd_render(fixed_text)
+                self.lcd_queue.put(lcd_render, fixed_text)
 
                 return self
 
@@ -217,3 +223,12 @@ class RpiLCDMenu(BaseMenu):
 
         except Exception as e:
             print("Render error: %s" % e)
+
+    def lcd_queue_thread(a):
+        while True:
+            items = self.lcd_queue.get()
+            func = items[0]
+            args = items[1:]
+            func(*args)
+
+    start_new_thread(lcd_queue_thread, (0,))
