@@ -86,42 +86,47 @@ class RpiLCDMenu(BaseMenu):
             if autoscroll == True:
                 # add one to the longest length so it scrolls off screen
                 if len1 < len2:
-                    text_length = len2 + 1
+                    text_length = len2
                 else:
-                    text_length = len1 + 1
+                    text_length = len1
 
                 # render for 16x2
                 fixed_text = self.render_16x2(final_text)
                 # render the output
                 lcd_render(fixed_text)
-                # show the text for one second
-                sleep(1)
 
-                # scroll the message right to left
-                # start 1 character in as we've already rendered the first character
-                for index in range(1, text_length):
+                # only scroll if needed
+                if text_length > 16:
 
-                    # render at 16x2
-                    fixed_text = self.render_16x2(final_text, index)
+                    # add one to the longest length so it scrolls off screen
+                    text_length = text_length + 1
+
+                    # show the text for one second
+                    sleep(1)
+
+                    # scroll the message right to left
+                    # start 1 character in as we've already rendered the first character
+                    for index in range(1, text_length):
+                        # render at 16x2
+                        fixed_text = self.render_16x2(final_text, index)
+
+                        # clear display before render
+                        self.clearDisplay()
+
+                        # render the output
+                        lcd_render(fixed_text)
+
+                        # wait a little between renders
+                        sleep(0.025)
+
+                    # render for 16x2
+                    fixed_text = self.render_16x2(final_text)
 
                     # clear display before render
                     self.clearDisplay()
 
                     # render the output
                     lcd_render(fixed_text)
-
-                    # wait a little between renders
-                    sleep(0.025)
-
-
-                # render for 16x2
-                fixed_text = self.render_16x2(final_text)
-
-                # clear display before render
-                self.clearDisplay()
-
-                # render the output
-                lcd_render(fixed_text)
 
                 return self
 
