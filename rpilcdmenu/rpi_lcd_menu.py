@@ -34,7 +34,7 @@ class RpiLCDMenu(BaseMenu):
             lines = 0
 
             # move cursor
-            self.lcd.write4bits(0x00)
+            self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
 
             for char in render_text:
                 if char == '\n':
