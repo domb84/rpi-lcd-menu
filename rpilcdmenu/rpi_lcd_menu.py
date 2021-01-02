@@ -162,7 +162,9 @@ class RpiLCDMenu(BaseMenu):
                 # if theres one line and its longer than 16 characters, split it onto  line 2
                 if len(line1) > 16:
                     line2 = line1[16:34]
-                    line1 = line1[0:14]
+                    line1 = line1[0:16]
+                    print("line 1: %s" % line1)
+                    print("line 2: %s" % line2)
                 else:
                     #  render nothing if theres nothing on line 2
                     line2 = ''
@@ -181,6 +183,8 @@ class RpiLCDMenu(BaseMenu):
             last_char = index + 16
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
+            print("vfd line 1: %s" % line1_vfd)
+            print("vfd line 2: %s" % line2_vfd)
 
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
