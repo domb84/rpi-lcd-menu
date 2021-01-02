@@ -19,11 +19,13 @@ class RpiLCDMenu(BaseMenu):
         self.pins_db = pins_db
         self.GPIO = GPIO
 
-        # self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
-        # self.lcd.initDisplay()
-        # # clear it once in case of corruption
-        # self.clearDisplay()
-        self.lcd_queue_processor()
+        self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
+        self.lcd.initDisplay()
+        # clear it once in case of corruption
+        self.clearDisplay()
+
+        # todo implement message queue to avoid corruption
+        # self.lcd_queue_processor()
 
         super(self.__class__, self).__init__()
 
@@ -233,9 +235,9 @@ class RpiLCDMenu(BaseMenu):
 
     def lcd_queue_processor(self):
         print("queue started")
-        self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
-        self.lcd.initDisplay()
-        self.clearDisplay()
+        # self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
+        # self.lcd.initDisplay()
+        # self.clearDisplay()
 
         while True:
             print("running")
