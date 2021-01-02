@@ -181,10 +181,11 @@ class RpiLCDMenu(BaseMenu):
         # incoming text will already have been cleaned up and split with a line break
         # by the message function
 
-        # render incoming text as 16x2 by taking the starting index and adding 16
-        # for each line
 
         try:
+            # render incoming text as 16x2 by taking the starting index and adding 16
+            # for each line
+
             lines = text.split('\n')
             line1 = lines[0]
             line2 = lines[1]
@@ -192,8 +193,6 @@ class RpiLCDMenu(BaseMenu):
             last_char = index + 16
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
-            print("vfd line 1: %s" % line1_vfd)
-            print("vfd line 2: %s" % line2_vfd)
 
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
