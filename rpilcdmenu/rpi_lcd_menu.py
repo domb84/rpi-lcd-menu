@@ -51,11 +51,36 @@ class RpiLCDMenu(BaseMenu):
             try:
                 splitlines = text.split('\n')
 
-                len1 = len(splitlines[0])
-                try:
+                # process a single line
+                if len(splitlines) < 2:
+                    line1 = splitlines[0]
+
+                    # if theres one line and its longer than 16 characters, split it onto line 2
+                    len1 = len(line1)
+                    if len1 > 16:
+                        # split it in half
+                        line2 = line1[(len1 / 2):]
+                        line1 = line1[0:(len1 / 2)]
+                        print("line 1: %s" % line1)
+                        print("line 2: %s" % line2)
+                    else:
+                        #  render nothing if theres nothing on line 2
+                        line2 = ''
+
+                    # set lenth of line 2
+                    len2 = len(line2)
+                    final_text = ("%s\n%s" % (line1, line2))
+
+                # process 2 lines
+                elif len(splitlines) == 2:
+                    len1 = len(splitlines[0])
                     len2 = len(splitlines[1])
-                except:
-                    len2 = 0
+                    final_text = text
+
+                else:
+                    len1 = len(splitlines[0])
+                    len2 = len(splitlines[1])
+                    final_text = text
 
                 # add one to the longest length so it scrolls off screen
                 if len1 < len2:
@@ -64,7 +89,7 @@ class RpiLCDMenu(BaseMenu):
                     text_length = len1 + 1
 
                 # render for 16x2
-                fixed_text = self.render_16x2(text)
+                fixed_text = self.render_16x2(final_text)
 
                 # render the output
                 lcd_render(fixed_text)
@@ -78,7 +103,7 @@ class RpiLCDMenu(BaseMenu):
                 for index in range(1, text_length):
 
                     # render at 16x2
-                    fixed_text = self.render_16x2(text, index)
+                    fixed_text = self.render_16x2(final_text, index)
 
                     # clear display before render
                     self.clearDisplay()
