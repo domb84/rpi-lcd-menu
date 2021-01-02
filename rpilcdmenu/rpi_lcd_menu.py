@@ -8,6 +8,7 @@ from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
 
 class RpiLCDMenu(BaseMenu):
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None, scrolling_menu=False):
+        print("lcd init")
         """
         Initialize menu
         """

@@ -12,7 +12,6 @@ class RpiLCDHwd:
     LCD_FUNCTIONSET = 0x20
     LCD_SETCGRAMADDR = 0x40
     LCD_SETDDRAMADDR = 0x80
-    LCD_BUSY = 0x80
 
     # flags for display entry mode
     LCD_ENTRYRIGHT = 0x00
@@ -90,7 +89,7 @@ class RpiLCDHwd:
 
     def write4bits(self, bits, char_mode=False):
         """ Send command to LCD """
-        self.delayMicroseconds(4000)  # 1000 microsecond sleep
+        self.delayMicroseconds(2000)  # 1000 microsecond sleep
         bits = bin(bits)[2:].zfill(8)
         self.GPIO.output(self.pin_rs, char_mode)
         for pin in self.pins_db:
