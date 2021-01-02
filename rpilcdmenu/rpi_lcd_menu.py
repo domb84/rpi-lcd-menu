@@ -226,7 +226,9 @@ class RpiLCDMenu(BaseMenu):
             print("Render error: %s" % e)
 
     def lcd_queue_processor(self):
+        print("queue started")
         while True:
+            print("running")
             items = self.lcd_queue.get()
             func = items[0]
             args = items[1:]
