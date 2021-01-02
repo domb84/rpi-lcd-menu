@@ -28,8 +28,9 @@ class RpiLCDMenu(BaseMenu):
         return self
 
     def message(self, text, autoscroll=False):
-        print(self)
-        """ Send long string to LCD. 17th char wraps to second line"""
+        """ Send long string to LCD. Long single line messages are split and scrolled if autoscroll is set.
+        else the are split and cropped."""
+
         def lcd_render(render_text):
             i = 0
             lines = 0
