@@ -11,13 +11,10 @@ class RpiLCDMenu(BaseMenu):
         """
         Initialize menu
         """
-        self.lcd_queue = queue.LifoQueue(maxsize=0)
         self.scrolling_menu = scrolling_menu
-        self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
 
+        self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
         self.lcd.initDisplay()
-        # self.clearDisplay()
-        self.lcd_queue_processor()
 
         super(self.__class__, self).__init__()
 
@@ -103,8 +100,7 @@ class RpiLCDMenu(BaseMenu):
                 # render for 16x2
                 fixed_text = self.render_16x2(final_text)
                 # render the output
-                # lcd_render(fixed_text)
-                self.lcd_queue.put(lcd_render, fixed_text)
+                lcd_render(fixed_text)
 
                 # only scroll if needed
                 if text_length > 16:
@@ -121,12 +117,8 @@ class RpiLCDMenu(BaseMenu):
                         # render at 16x2
                         fixed_text = self.render_16x2(final_text, index)
 
-                        # clear display before render
-                        # self.clearDisplay()
-
                         # render the output
-                        # lcd_render(fixed_text)
-                        self.lcd_queue.put(lcd_render, fixed_text)
+                        lcd_render(fixed_text)
 
                         # wait a little between renders
                         sleep(0.005)
@@ -138,8 +130,7 @@ class RpiLCDMenu(BaseMenu):
                     # self.clearDisplay()
 
                     # render the output
-                    # lcd_render(fixed_text)
-                    self.lcd_queue.put(lcd_render, fixed_text)
+                    lcd_render(fixed_text)
 
                 return self
 
@@ -148,8 +139,7 @@ class RpiLCDMenu(BaseMenu):
                 fixed_text = self.render_16x2(final_text)
 
                 # render the output
-                # lcd_render(fixed_text)
-                self.lcd_queue.put(lcd_render, fixed_text)
+                lcd_render(fixed_text)
 
                 return self
 
@@ -225,11 +215,3 @@ class RpiLCDMenu(BaseMenu):
         except Exception as e:
             print("Render error: %s" % e)
 
-    def lcd_queue_processor(self):
-        print("queue started")
-        while True:
-            print("running")
-            items = self.lcd_queue.get()
-            func = items[0]
-            args = items[1:]
-            func(*args)
