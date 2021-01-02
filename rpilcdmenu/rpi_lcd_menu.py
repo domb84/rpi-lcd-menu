@@ -161,8 +161,8 @@ class RpiLCDMenu(BaseMenu):
 
                 # if theres one line and its longer than 16 characters, split it onto  line 2
                 if len(line1) > 16:
-                    line2 = line1[16:32]
-                    line1 = line1[0:16]
+                    line2 = line1[16:33]
+                    line1 = line1[0:17]
                 else:
                     #  render nothing if theres nothing on line 2
                     line2 = ''
