@@ -224,7 +224,7 @@ class RpiLCDMenu(BaseMenu):
         except Exception as e:
             print("Render error: %s" % e)
 
-    def lcd_queue_processor(a):
+    def lcd_queue_processor(self):
         while True:
             items = self.lcd_queue.get()
             func = items[0]
