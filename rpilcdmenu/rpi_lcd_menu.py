@@ -11,7 +11,7 @@ class RpiLCDMenu(BaseMenu):
         """
         Initialize menu
         """
-        self.lcd_queue = Queue()
+        self.lcd_queue = queue()
         self.scrolling_menu = scrolling_menu
         self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
 
