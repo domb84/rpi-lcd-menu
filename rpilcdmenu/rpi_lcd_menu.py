@@ -231,4 +231,4 @@ class RpiLCDMenu(BaseMenu):
             args = items[1:]
             func(*args)
 
-    lcd_queue_processor()
+    self.lcd_queue_processor()
