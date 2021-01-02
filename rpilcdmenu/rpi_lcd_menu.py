@@ -14,7 +14,7 @@ class RpiLCDMenu(BaseMenu):
         self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
 
         self.lcd.initDisplay()
-        self.clearDisplay()
+        # self.clearDisplay()
 
         super(self.__class__, self).__init__()
 
@@ -28,6 +28,7 @@ class RpiLCDMenu(BaseMenu):
         return self
 
     def message(self, text, autoscroll=False):
+        print(self)
         """ Send long string to LCD. 17th char wraps to second line"""
         def lcd_render(render_text):
             i = 0
@@ -161,7 +162,7 @@ class RpiLCDMenu(BaseMenu):
         Render menu
         """
         # return home rather thanclear the display
-        self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
+        # self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
 
         if len(self.items) == 0:
             self.message('Menu is empty')
