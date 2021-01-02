@@ -33,6 +33,7 @@ class RpiLCDMenu(BaseMenu):
             i = 0
             lines = 0
 
+            self.lcd.write4bits(0x01)
             for char in render_text:
                 if char == '\n':
                     self.lcd.write4bits(0xC0)  # next line
@@ -113,13 +114,13 @@ class RpiLCDMenu(BaseMenu):
                         fixed_text = self.render_16x2(final_text, index)
 
                         # clear display before render
-                        self.clearDisplay()
+                        # self.clearDisplay()
 
                         # render the output
                         lcd_render(fixed_text)
 
                         # wait a little between renders
-                        sleep(0.005)
+                        sleep(0.025)
 
                     # render for 16x2
                     fixed_text = self.render_16x2(final_text)
@@ -205,7 +206,7 @@ class RpiLCDMenu(BaseMenu):
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
 
-            print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
+            # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
 
