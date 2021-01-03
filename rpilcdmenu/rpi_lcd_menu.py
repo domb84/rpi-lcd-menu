@@ -11,7 +11,7 @@ class RpiLCDMenu(BaseMenu):
         """
         Initialize menu
         """
-        self.lcd_queue = queue.LifoQueue(maxsize=0)
+        self.lcd_queue = queue(maxsize=0)
         self.scrolling_menu = scrolling_menu
 
         self.pin_rs = pin_rs
@@ -237,7 +237,7 @@ class RpiLCDMenu(BaseMenu):
             print("Render error: %s" % e)
 
     def lcd_queue_processor(self):
-        print("queue started")
+        # print("queue started")
         self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
         self.lcd.initDisplay()
         # clear it once in case of corruption
@@ -245,7 +245,7 @@ class RpiLCDMenu(BaseMenu):
         self.message('hello')
 
         while True:
-            print("running")
+            # print("running")
             items = self.lcd_queue.get()
             func = items[0]
             args = items[1:]
