@@ -115,7 +115,7 @@ class RpiLCDMenu(BaseMenu):
                 fixed_text = self.render_16x2(final_text)
                 # render the output
                 # lcd_render(fixed_text)
-                self.lcd_queue.put(lcd_render, fixed_text)
+                self.lcd_queue.put((lcd_render, fixed_text))
 
                 # only scroll if needed
                 if text_length > 16:
@@ -137,7 +137,7 @@ class RpiLCDMenu(BaseMenu):
 
                         # render the output
                         # lcd_render(fixed_text)
-                        self.lcd_queue.put(lcd_render, fixed_text)
+                        self.lcd_queue.put((lcd_render, fixed_text))
 
                         # wait a little between renders
                         sleep(0.005)
@@ -150,7 +150,7 @@ class RpiLCDMenu(BaseMenu):
 
                     # render the output
                     # lcd_render(fixed_text)
-                    self.lcd_queue.put(lcd_render, fixed_text)
+                    self.lcd_queue.put((lcd_render, fixed_text))
 
                 return self
 
@@ -160,7 +160,7 @@ class RpiLCDMenu(BaseMenu):
 
                 # render the output
                 # lcd_render(fixed_text)
-                self.lcd_queue.put(lcd_render, fixed_text)
+                self.lcd_queue.put((lcd_render, fixed_text))
 
                 return self
 
