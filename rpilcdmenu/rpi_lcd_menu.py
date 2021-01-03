@@ -159,8 +159,8 @@ class RpiLCDMenu(BaseMenu):
                 fixed_text = self.render_16x2(final_text)
 
                 # render the output
-                lcd_render(fixed_text)
-                # self.lcd_queue.put(lcd_render, fixed_text)
+                # lcd_render(fixed_text)
+                self.lcd_queue.put(lcd_render, fixed_text)
 
                 return self
 
