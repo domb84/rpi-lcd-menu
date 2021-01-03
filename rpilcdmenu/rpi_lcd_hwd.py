@@ -89,7 +89,7 @@ class RpiLCDHwd:
 
     def write4bits(self, bits, char_mode=False):
         """ Send command to LCD """
-        self.delayMicroseconds(1500)  # 1000 microsecond sleep
+        self.delayMicroseconds(1000)  # 1000 microsecond sleep
         bits = bin(bits)[2:].zfill(8)
         self.GPIO.output(self.pin_rs, char_mode)
         for pin in self.pins_db:
