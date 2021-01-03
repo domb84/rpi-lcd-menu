@@ -27,7 +27,7 @@ class RpiLCDMenu(BaseMenu):
 
         # todo implement message queue to avoid corruption
         # turn-on the worker thread
-        threading.Thread(target=self.lcd_queue_processor, daemon=True).start()
+        threading.Thread(target=self.lcd_queue_processor).start()
         # self.lcd_queue_processor()
 
         super(self.__class__, self).__init__()
