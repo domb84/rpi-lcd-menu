@@ -85,13 +85,19 @@ class RpiLCDMenu(BaseMenu):
                 # set lengeths for scoller but other wise leave the text
                 len1 = len(splitlines[0])
                 len2 = len(splitlines[1])
-                final_text = text
+                # pad out short lines
+                line1 = "{:<16}".format(splitlines[0])
+                line2 = "{:<16}".format(splitlines[1])
+                final_text = ("%s\n%s" % (line1, line2))
 
             else:
                 # TODO process more than 2 lines. Currently they just get cropped.
                 len1 = len(splitlines[0])
                 len2 = len(splitlines[1])
-                final_text = text
+                # pad out short lines
+                line1 = "{:<16}".format(splitlines[0])
+                line2 = "{:<16}".format(splitlines[1])
+                final_text = ("%s\n%s" % (line1, line2))
 
             # print("Final text is: %s" % final_text)
 
@@ -226,10 +232,10 @@ class RpiLCDMenu(BaseMenu):
 
             # render from index to 16 characters in
             last_char = index + 16
-            # pad out the text if its less than 16 characters  long
 
-            line1_vfd = "{:<16}".format(line1[index:last_char])
-            line2_vfd = "{:<16}".format(line2[index:last_char])
+            # # pad out the text if its less than 16 characters  long
+            # line1_vfd = "{:<16}".format(line1[index:last_char])
+            # line2_vfd = "{:<16}".format(line2[index:last_char])
 
             # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
@@ -252,9 +258,6 @@ class RpiLCDMenu(BaseMenu):
             # pad out the text if its less than 16 characters long from the left
             line1_vfd = "{:>16}".format(line1[0:index])
             line2_vfd = "{:>16}".format(line2[0:index])
-            # pad out short lines from the right as well
-            line1_vfd = "{:<16}".format(line1_vfd)
-            line2_vfd = "{:<16}".format(line2_vfd)
             # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
