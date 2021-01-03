@@ -124,9 +124,6 @@ class RpiLCDMenu(BaseMenu):
                         # render at 16x2
                         fixed_text = self.render_16x2(final_text, index)
 
-                        # clear display before render
-                        # self.clearDisplay()
-
                         # render the output
                         # lcd_render(fixed_text)
                         self.lcd_queue.put((lcd_render, fixed_text))
@@ -134,13 +131,10 @@ class RpiLCDMenu(BaseMenu):
                         # wait a little between renders
                         sleep(0.005)
 
-                    # then do the reverse the scroll all the way round
-                    for index in range(text_length, 1):
+                    # scroll the rest of the way
+                    for index in range(0, 15):
                         # render at 16x2
-                        fixed_text = self.render_16x2(final_text, index)
-
-                        # clear display before render
-                        # self.clearDisplay()
+                        fixed_text = self.render_16x2_reverse(final_text, index)
 
                         # render the output
                         # lcd_render(fixed_text)
@@ -148,12 +142,10 @@ class RpiLCDMenu(BaseMenu):
 
                         # wait a little between renders
                         sleep(0.005)
+
 
                     # render for 16x2
                     fixed_text = self.render_16x2(final_text)
-
-                    # clear display before render
-                    # self.clearDisplay()
 
                     # render the output
                     # lcd_render(fixed_text)
@@ -231,10 +223,35 @@ class RpiLCDMenu(BaseMenu):
             lines = text.split('\n')
             line1 = lines[0]
             line2 = lines[1]
-            # pad out the text if its less than 16 characters  long
+
+            # render from index to 16 characters in
             last_char = index + 16
+            # pad out the text if its less than 16 characters  long
+
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
+
+            # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
+            return ("%s\n%s" % (line1_vfd, line2_vfd))
+
+
+        except Exception as e:
+            print("Render error: %s" % e)
+
+    def render_16x2_reverse(self, text, index=0):
+
+        # incoming text will already have been cleaned up and split with a line break
+        # by the message function
+
+        try:
+            # render incoming text as 16x2 but right justified. ie add padding to the left.
+            # only useful for the reverse scroll
+            lines = text.split('\n')
+            line1 = lines[0]
+            line2 = lines[1]
+            # pad out the text if its less than 16 characters  long
+            line1_vfd = "{:>16}".format(line1[0:index])
+            line2_vfd = "{:>16}".format(line2[0:index])
 
             # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
