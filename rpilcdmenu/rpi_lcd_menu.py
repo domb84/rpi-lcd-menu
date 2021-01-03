@@ -134,6 +134,21 @@ class RpiLCDMenu(BaseMenu):
                         # wait a little between renders
                         sleep(0.005)
 
+                    # then do the reverse the scroll all the way round
+                    for index in range(text_length, 1):
+                        # render at 16x2
+                        fixed_text = self.render_16x2(final_text, index)
+
+                        # clear display before render
+                        # self.clearDisplay()
+
+                        # render the output
+                        # lcd_render(fixed_text)
+                        self.lcd_queue.put((lcd_render, fixed_text))
+
+                        # wait a little between renders
+                        sleep(0.005)
+
                     # render for 16x2
                     fixed_text = self.render_16x2(final_text)
 
