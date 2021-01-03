@@ -234,8 +234,8 @@ class RpiLCDMenu(BaseMenu):
             last_char = index + 16
 
             # # pad out the text if its less than 16 characters  long
-            # line1_vfd = "{:<16}".format(line1[index:last_char])
-            # line2_vfd = "{:<16}".format(line2[index:last_char])
+            line1_vfd = "{:<16}".format(line1[index:last_char])
+            line2_vfd = "{:<16}".format(line2[index:last_char])
 
             # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
