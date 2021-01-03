@@ -134,9 +134,6 @@ class RpiLCDMenu(BaseMenu):
                         # lcd_render(fixed_text)
                         self.lcd_queue.put((lcd_render, fixed_text))
 
-                        # wait a little between renders
-                        sleep(0.005)
-
                     # scroll the rest of the way
                     for index in range(0, 16):
                         # render at 16x2
@@ -145,10 +142,6 @@ class RpiLCDMenu(BaseMenu):
                         # render the output
                         # lcd_render(fixed_text)
                         self.lcd_queue.put((lcd_render, fixed_text))
-
-                        # wait a little between renders
-                        sleep(0.005)
-
 
                     # render for 16x2
                     fixed_text = self.render_16x2(final_text)
