@@ -241,6 +241,7 @@ class RpiLCDMenu(BaseMenu):
         # clear it once in case of corruption
         self.clearDisplay()
         self.displayTestScreen()
+        self.message('hello')
 
         while True:
             print("running")
