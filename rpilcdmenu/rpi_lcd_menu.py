@@ -19,16 +19,8 @@ class RpiLCDMenu(BaseMenu):
         self.pins_db = pins_db
         self.GPIO = GPIO
 
-        # self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
-        # self.lcd.initDisplay()
-        # # clear it once in case of corruption
-        # self.clearDisplay()
-        # self.message("Hello")
-
-        # todo implement message queue to avoid corruption
         # turn-on the worker thread
         threading.Thread(target=self.lcd_queue_processor).start()
-        # self.lcd_queue_processor()
 
         super(self.__class__, self).__init__()
 
@@ -242,10 +234,9 @@ class RpiLCDMenu(BaseMenu):
         self.lcd.initDisplay()
         # clear it once in case of corruption
         self.clearDisplay()
-        self.message('hello')
+        # self.message('Initialising')
 
         while True:
-            # print("running")
             items = self.lcd_queue.get()
             func = items[0]
             args = items[1:]
