@@ -26,7 +26,9 @@ class RpiLCDMenu(BaseMenu):
         # self.message("Hello")
 
         # todo implement message queue to avoid corruption
-        self.lcd_queue_processor()
+        # turn-on the worker thread
+        threading.Thread(target=lcd_queue_processor, daemon=True).start()
+        # self.lcd_queue_processor()
 
         super(self.__class__, self).__init__()
 
@@ -240,7 +242,6 @@ class RpiLCDMenu(BaseMenu):
         self.lcd.initDisplay()
         # clear it once in case of corruption
         self.clearDisplay()
-        self.displayTestScreen()
         self.message('hello')
 
         while True:
