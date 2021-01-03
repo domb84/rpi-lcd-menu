@@ -237,9 +237,8 @@ class RpiLCDMenu(BaseMenu):
         print("queue started")
         self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
         self.lcd.initDisplay()
-        self.clearDisplay()
-        hello = self.message("hello")
-        print(hello)
+        # self.clearDisplay()
+        hello = self.message('hello')
 
         while True:
             print("running")
