@@ -238,7 +238,8 @@ class RpiLCDMenu(BaseMenu):
         self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
         self.lcd.initDisplay()
         self.clearDisplay()
-        self.message("hello")
+        hello = self.message("hello")
+        print(hello)
 
         while True:
             print("running")
