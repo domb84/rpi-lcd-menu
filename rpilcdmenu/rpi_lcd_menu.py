@@ -261,3 +261,4 @@ class RpiLCDMenu(BaseMenu):
             func = items[0]
             args = items[1:]
             func(*args)
+
