@@ -5,7 +5,8 @@
 RPI LCD Menu is a python library for creating multi level menus displayed on 16x2 LCD screens (i.e. hd44780).
 Navigation can be easily implemented for any user input (buttons, joysticks, switches, detectors etc.).
 
-This fork allows horizontally scrolling menus and messages as I'm using it in a "hifi" project.
+This fork implements horizontal scrolling for messages and menus, and a queueing system to avoid corruption.
+I'm utilising it as a menu and track display system for a retro hifi project. 
 
 Tested on python 3.7.3+.
 

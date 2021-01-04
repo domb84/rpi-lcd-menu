@@ -67,7 +67,7 @@ class RpiLCDMenu(BaseMenu):
             if len(splitlines) < 2:
                 line1 = splitlines[0]
 
-                # if theres one line and its longer than 16 characters, split it onto line 2
+                # if there's one line and its longer than 16 characters, split it onto line 2
                 len1 = len(line1)
                 if len1 > 16:
                     #  // will return an integer
@@ -79,14 +79,14 @@ class RpiLCDMenu(BaseMenu):
                     #  line 2 is nothing if line1 is not more than 16 characters
                     line2 = ''
 
-                # recalculate lengths for scoller
+                # recalculate lengths for srcoller
                 len1 = len(line1)
                 len2 = len(line2)
                 final_text = ("%s\n%s" % (line1, line2))
 
             # process 2 lines
             elif len(splitlines) == 2:
-                # set lengeths for scoller but other wise leave the text
+                # set lengths for scroller but other wise leave the text
                 len1 = len(splitlines[0])
                 len2 = len(splitlines[1])
                 # pad out short lines
@@ -103,8 +103,6 @@ class RpiLCDMenu(BaseMenu):
                 line2 = "{:<16}".format(splitlines[1])
                 final_text = ("%s\n%s" % (line1, line2))
 
-            # print("Final text is: %s" % final_text)
-
             # TODO needs to be interruptable somehow
             if autoscroll == True:
                 # add one to the longest length so it scrolls off screen
@@ -116,7 +114,6 @@ class RpiLCDMenu(BaseMenu):
                 # render for 16x2
                 fixed_text = self.render_16x2(final_text)
                 # render the output
-                # lcd_render(fixed_text)
                 self.lcd_queue.put((self.lcd_render, fixed_text))
 
                 # only scroll if needed
@@ -135,7 +132,6 @@ class RpiLCDMenu(BaseMenu):
                         fixed_text = self.render_16x2(final_text, index)
 
                         # render the output
-                        # lcd_render(fixed_text)
                         self.lcd_queue.put((self.lcd_render, fixed_text))
 
                     # scroll the rest of the way
@@ -144,14 +140,12 @@ class RpiLCDMenu(BaseMenu):
                         fixed_text = self.render_16x2_reverse(final_text, index)
 
                         # render the output
-                        # lcd_render(fixed_text)
                         self.lcd_queue.put((self.lcd_render, fixed_text))
 
                     # render for 16x2
                     fixed_text = self.render_16x2(final_text)
 
                     # render the output
-                    # lcd_render(fixed_text)
                     self.lcd_queue.put((self.lcd_render, fixed_text))
 
                 return self
@@ -161,7 +155,6 @@ class RpiLCDMenu(BaseMenu):
                 fixed_text = self.render_16x2(final_text)
 
                 # render the output
-                # lcd_render(fixed_text)
                 self.lcd_queue.put((self.lcd_render, fixed_text))
 
                 return self
@@ -182,9 +175,6 @@ class RpiLCDMenu(BaseMenu):
         """
         Render menu
         """
-        # return home rather thanclear the display
-        # self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
-
         if len(self.items) == 0:
             self.message('Menu is empty')
             return self
@@ -192,7 +182,7 @@ class RpiLCDMenu(BaseMenu):
             options = (self.current_option == 0 and ">" or " ") + self.items[0].text
             if len(self.items) == 2:
                 options += "\n" + (self.current_option == 1 and ">" or " ") + self.items[1].text
-            print(options)
+            # print(options)
             if self.scrolling_menu == True:
                 self.message(options, autoscroll=True)
             else:
@@ -217,12 +207,9 @@ class RpiLCDMenu(BaseMenu):
 
         # incoming text will already have been cleaned up and split with a line break
         # by the message function
-
-
         try:
             # render incoming text as 16x2 by taking the starting index and adding 16
             # for each line
-
             lines = text.split('\n')
             line1 = lines[0]
             line2 = lines[1]
@@ -234,7 +221,6 @@ class RpiLCDMenu(BaseMenu):
             line1_vfd = "{:<16}".format(line1[index:last_char])
             line2_vfd = "{:<16}".format(line2[index:last_char])
 
-            # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
 
@@ -245,7 +231,6 @@ class RpiLCDMenu(BaseMenu):
 
         # incoming text will already have been cleaned up and split with a line break
         # by the message function
-
         try:
             # render incoming text as 16x2 but right justified. ie add padding to the left.
             # only useful for the reverse scroll
@@ -255,7 +240,7 @@ class RpiLCDMenu(BaseMenu):
             # pad out the text if its less than 16 characters long from the left
             line1_vfd = "{:>16}".format(line1[0:index])
             line2_vfd = "{:>16}".format(line2[0:index])
-            # print("Line lengths:\n%s\n%s" % (len(line1_vfd), len(line2_vfd)))
+
             return ("%s\n%s" % (line1_vfd, line2_vfd))
 
 
@@ -263,13 +248,14 @@ class RpiLCDMenu(BaseMenu):
             print("Render error: %s" % e)
 
     def lcd_queue_processor(self):
-        # print("queue started")
+
         self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
         self.lcd.initDisplay()
-        # clear it once in case of corruption
-        self.clearDisplay()
-        # self.message('Initialising')
 
+        # clear it once in case of existing corruption
+        self.clearDisplay()
+
+        # process the queue
         while True:
             items = self.lcd_queue.get()
             func = items[0]
