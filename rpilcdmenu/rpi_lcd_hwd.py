@@ -130,8 +130,12 @@ class RpiLCDHwd:
 
         return self
 
-    def displayToggle(self, mode=self.display_toggle):
-        if mode == 'on':
+    def displayToggle(self):
+        if self.display_toggle == 'on':
             self.lcd.displaycontrol = self.lcd.LCD_DISPLAYOFF
-        if mode == 'off':
+            self.display_toggle = 'off'
+        if self.display_toggle == 'off':
             self.lcd.displaycontrol = self.lcd.LCD_DISPLAYON
+            self.display_toggle = 'on'
+
+        return self
