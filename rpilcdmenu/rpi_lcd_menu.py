@@ -33,28 +33,32 @@ class RpiLCDMenu(BaseMenu):
 
         return self
 
+    def lcd_render(self, render_text):
+        i = 0
+        lines = 0
+
+        # return home rather thanclear the display
+        self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
+
+        for char in render_text:
+            if char == '\n':
+                self.lcd.write4bits(0xC0)  # next line
+                i = 0
+                lines += 1
+            else:
+                self.lcd.write4bits(ord(char), True)
+                i = i + 1
+
+            if i == 16:
+                self.lcd.write4bits(0xC0)  # last char of the line
+
     def message(self, text, autoscroll=False):
         """ Send long string to LCD. Long single line messages are split and scrolled if autoscroll is set.
         else the are split and cropped."""
 
-        def lcd_render(render_text):
-            i = 0
-            lines = 0
-
-            # return home rather thanclear the display
-            self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
-
-            for char in render_text:
-                if char == '\n':
-                    self.lcd.write4bits(0xC0)  # next line
-                    i = 0
-                    lines += 1
-                else:
-                    self.lcd.write4bits(ord(char), True)
-                    i = i + 1
-
-                if i == 16:
-                    self.lcd.write4bits(0xC0)  # last char of the line
+        # clear the existing lcd queue
+        with self.lcd_queue.mutex:
+            self.lcd_queue.clear()
 
         try:
             splitlines = text.split('\n')
@@ -113,7 +117,7 @@ class RpiLCDMenu(BaseMenu):
                 fixed_text = self.render_16x2(final_text)
                 # render the output
                 # lcd_render(fixed_text)
-                self.lcd_queue.put((lcd_render, fixed_text))
+                self.lcd_queue.put((self.lcd_render, fixed_text))
 
                 # only scroll if needed
                 if text_length > 16:
@@ -132,7 +136,7 @@ class RpiLCDMenu(BaseMenu):
 
                         # render the output
                         # lcd_render(fixed_text)
-                        self.lcd_queue.put((lcd_render, fixed_text))
+                        self.lcd_queue.put((self.lcd_render, fixed_text))
 
                     # scroll the rest of the way
                     for index in range(0, 16):
@@ -141,14 +145,14 @@ class RpiLCDMenu(BaseMenu):
 
                         # render the output
                         # lcd_render(fixed_text)
-                        self.lcd_queue.put((lcd_render, fixed_text))
+                        self.lcd_queue.put((self.lcd_render, fixed_text))
 
                     # render for 16x2
                     fixed_text = self.render_16x2(final_text)
 
                     # render the output
                     # lcd_render(fixed_text)
-                    self.lcd_queue.put((lcd_render, fixed_text))
+                    self.lcd_queue.put((self.lcd_render, fixed_text))
 
                 return self
 
@@ -158,7 +162,7 @@ class RpiLCDMenu(BaseMenu):
 
                 # render the output
                 # lcd_render(fixed_text)
-                self.lcd_queue.put((lcd_render, fixed_text))
+                self.lcd_queue.put((self.lcd_render, fixed_text))
 
                 return self
 
