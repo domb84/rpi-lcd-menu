@@ -2,7 +2,7 @@ from rpilcdmenu import RpiLCDMenu
 
 
 class RpiLCDSubMenu(RpiLCDMenu):
-    def __init__(self, base_menu, scrolling_menu):
+    def __init__(self, base_menu, scrolling_menu=False):
         """
         Initialize SubMenu
         """
