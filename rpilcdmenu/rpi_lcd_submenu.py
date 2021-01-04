@@ -6,6 +6,7 @@ class RpiLCDSubMenu(RpiLCDMenu):
         """
         Initialize SubMenu
         """
+        self.scrolling_menu = scrolling_menu
         self.lcd = base_menu.lcd
 
-        super(RpiLCDMenu, self).__init__(base_menu, scrolling_menu=False)
+        super(RpiLCDMenu, self).__init__(base_menu, scrolling_menu)
