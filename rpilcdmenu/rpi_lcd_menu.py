@@ -58,7 +58,7 @@ class RpiLCDMenu(BaseMenu):
 
         # clear the existing lcd queue
         with self.lcd_queue.mutex:
-            self.lcd_queue.clear()
+            self.lcd_queue.queue.clear()
 
         try:
             splitlines = text.split('\n')
