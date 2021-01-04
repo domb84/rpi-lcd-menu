@@ -69,7 +69,8 @@ class RpiLCDHwd:
         for pin in self.pins_db:
             self.GPIO.setup(pin, GPIO.OUT)
 
-        self.display_toggle = 'on'
+        # TODO  fix toggle  function
+        # self.display_toggle = 'on'
 
     def initDisplay(self):
         self.write4bits(0x33)  # initialization
@@ -130,12 +131,13 @@ class RpiLCDHwd:
 
         return self
 
-    def displayToggle(self):
-        if self.display_toggle == 'on':
-            self.write4bits(self.LCD_ENTRYMODESET | self.LCD_DISPLAYOFF)
-            self.display_toggle = 'off'
-        if self.display_toggle == 'off':
-            self.write4bits(self.LCD_ENTRYMODESET | self.LCD_DISPLAYON)
-            self.display_toggle = 'on'
-
-        return self
+    # TODO fix displayToggle
+    # def displayToggle(self):
+    #     if self.display_toggle == 'on':
+    #         self.write4bits(self.LCD_ENTRYMODESET | self.LCD_DISPLAYOFF)
+    #         self.display_toggle = 'off'
+    #     if self.display_toggle == 'off':
+    #         self.write4bits(self.LCD_ENTRYMODESET | self.LCD_DISPLAYON)
+    #         self.display_toggle = 'on'
+    #
+    #     return self
