@@ -131,7 +131,6 @@ class RpiLCDHwd:
 
         return self
 
-    # TODO fix displayToggle
     def displayToggle(self):
         if self.display_toggle == 'on':
             self.write4bits(self.LCD_CLEARDISPLAY | self.LCD_DISPLAYOFF)
