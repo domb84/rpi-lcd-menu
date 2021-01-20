@@ -77,7 +77,7 @@ class RpiLCDMenu(BaseMenu):
                     # split it in half
                     line1 = line1[0:split]
                     # pad out to length of line 1
-                    line2 = "{:<%s}" % len(line1).format(line1[split:])
+                    line2 = line1[split:].ljust(len(line1), ' ')
                 else:
                     #  line 2 is nothing if line1 is not more than 16 characters
                     line2 = ''
