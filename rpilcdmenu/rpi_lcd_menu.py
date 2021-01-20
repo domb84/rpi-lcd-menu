@@ -72,9 +72,11 @@ class RpiLCDMenu(BaseMenu):
                 if len1 > 16:
                     #  // will return an integer
                     half = (len1 // 2)
+                    # find the next space after half the string
+                    split = line1.find(' ', half)
                     # split it in half
-                    line2 = line1[half:]
-                    line1 = line1[0:half]
+                    line2 = line1[split:]
+                    line1 = line1[0:split]
                 else:
                     #  line 2 is nothing if line1 is not more than 16 characters
                     line2 = ''
