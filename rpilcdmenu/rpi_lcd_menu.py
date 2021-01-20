@@ -105,7 +105,7 @@ class RpiLCDMenu(BaseMenu):
                 line2 = "{:<16}".format(splitlines[1])
                 final_text = ("%s\n%s" % (line1, line2))
 
-            # TODO needs to be interruptable somehow
+            # scroll messages
             if autoscroll == True:
                 # add one to the longest length so it scrolls off screen
                 if len1 < len2:
