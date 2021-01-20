@@ -73,7 +73,7 @@ class RpiLCDMenu(BaseMenu):
                     #  // will return an integer
                     half = (len1 // 2)
                     # find the next space after half the string
-                    split = line1.find(' ', half)
+                    split = line1.find(' ', half) - 1
                     # split it in half
                     line2 = line1[split:]
                     line1 = line1[0:split]
