@@ -30,10 +30,6 @@ class RpiLCDHwd:
     # flags for display/cursor shift
     LCD_DISPLAYMOVE = 0x08
     LCD_CURSORMOVE = 0x00
-
-    # flags for display/cursor shift
-    LCD_DISPLAYMOVE = 0x08
-    LCD_CURSORMOVE = 0x00
     LCD_MOVERIGHT = 0x04
     LCD_MOVELEFT = 0x00
 
@@ -45,7 +41,12 @@ class RpiLCDHwd:
     LCD_5x10DOTS = 0x04
     LCD_5x8DOTS = 0x00
 
-    def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None):
+    # Time to let a normal command settle. The HD44780 needs ~37us for most
+    # instructions; clear/home need ~1.5ms and are paced by their callers.
+    COMMAND_DELAY_US = 50
+
+    def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
+                 command_delay_us=COMMAND_DELAY_US):
         """
         LCD GPIO configuration
         """
@@ -57,29 +58,32 @@ class RpiLCDHwd:
         self.pin_rs = pin_rs
         self.pin_e = pin_e
         self.pins_db = pins_db
+        self.command_delay_us = command_delay_us
 
         self.displaycontrol = None
         self.displayfunction = None
         self.displaymode = None
+        self.display_toggle = 'on'
 
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(self.pin_rs, GPIO.OUT)
         self.GPIO.setup(self.pin_e, GPIO.OUT)
-
         for pin in self.pins_db:
             self.GPIO.setup(pin, GPIO.OUT)
 
-        self.display_toggle = 'on'
-
     def initDisplay(self):
+        # Power-on init needs generous settle times; normal writes do not, so
+        # these longer delays live here rather than in write4bits.
+        self.delayMicroseconds(15000)  # wait > 15ms after Vcc rises
         self.write4bits(0x33)  # initialization
+        self.delayMicroseconds(4500)   # wait > 4.1ms
         self.write4bits(0x32)  # initialization
+        self.delayMicroseconds(150)
         self.write4bits(0x28)  # 2 line 5x7 matrix
         self.write4bits(0x0C)  # turn cursor off 0x0E to enable cursor
         self.write4bits(0x06)  # shift cursor right
 
         self.displaycontrol = self.LCD_DISPLAYON | self.LCD_CURSOROFF | self.LCD_BLINKOFF
-
         self.displayfunction = self.LCD_4BITMODE | self.LCD_1LINE | self.LCD_5x8DOTS
         self.displayfunction |= self.LCD_2LINE
 
@@ -90,43 +94,33 @@ class RpiLCDHwd:
         return self
 
     def write4bits(self, bits, char_mode=False):
-        """ Send command to LCD """
-        self.delayMicroseconds(1500)  # 1000 microsecond sleep
-        bits = bin(bits)[2:].zfill(8)
+        """Send a byte to the LCD, high nibble first, over the 4-bit data bus.
+
+        ``pins_db[i]`` is wired to data line DB(4 + i), so for each nibble we
+        drive every data pin directly from the corresponding bit of ``bits``.
+        """
+        self.delayMicroseconds(self.command_delay_us)
         self.GPIO.output(self.pin_rs, char_mode)
-        for pin in self.pins_db:
-            self.GPIO.output(pin, False)
 
-        for i in range(4):
-            if bits[i] == "1":
-                self.GPIO.output(self.pins_db[::-1][i], True)
-
-        self.pulseEnable()
-
-        for pin in self.pins_db:
-            self.GPIO.output(pin, False)
-
-        for i in range(4, 8):
-            if bits[i] == "1":
-                self.GPIO.output(self.pins_db[::-1][i - 4], True)
-
-        self.pulseEnable()
+        for shift in (4, 0):  # high nibble, then low nibble
+            for i, pin in enumerate(self.pins_db):
+                self.GPIO.output(pin, bool((bits >> (shift + i)) & 1))
+            self.pulseEnable()
 
         return self
 
     def delayMicroseconds(self, microseconds):
-        seconds = microseconds / float(1000000)  # divide microseconds by 1 million for seconds
-        sleep(seconds)
-
+        sleep(microseconds / 1000000.0)
         return self
 
     def pulseEnable(self):
+        # The enable pulse must be > 450ns and commands need > 37us to settle.
         self.GPIO.output(self.pin_e, False)
-        self.delayMicroseconds(1)  # 1 microsecond pause - enable pulse must be > 450ns
+        self.delayMicroseconds(1)
         self.GPIO.output(self.pin_e, True)
-        self.delayMicroseconds(1)  # 1 microsecond pause - enable pulse must be > 450ns
+        self.delayMicroseconds(1)
         self.GPIO.output(self.pin_e, False)
-        self.delayMicroseconds(1)  # commands need > 37us to settle
+        self.delayMicroseconds(1)
 
         return self
 
@@ -134,7 +128,7 @@ class RpiLCDHwd:
         if self.display_toggle == 'on':
             self.write4bits(self.LCD_CLEARDISPLAY | self.LCD_DISPLAYOFF)
             self.display_toggle = 'off'
-        if self.display_toggle == 'off':
+        else:
             self.initDisplay()
             self.display_toggle = 'on'
 
