@@ -1,7 +1,7 @@
 import pytest
 import sys
 import datetime
-from mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, MagicMock, patch, call
 
 from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
 
@@ -59,26 +59,6 @@ def test_rpilcdhwd_initDisplay_configures_proper_lcd_settings():
         ]
 
 
-def test_rpilcdhwd_initDisplay_configures_proper_lcd_settings():
-    RPi_mock = Mock()
-    RPi_mock.GPIO = MagicMock()
-
-    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
-        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
-
-        lcd.write4bits = Mock()
-        lcd.initDisplay()
-
-        assert lcd.write4bits.mock_calls == [
-            call(0x33),
-            call(0x32),
-            call(0x28),
-            call(0x0C),
-            call(0x06),
-            call(0x06),
-        ]
-
-
 def test_rpilcdmenu_write4bits_transfers_data_through_GPIO():
     RPi_mock = Mock()
     RPi_mock.GPIO = Mock()
@@ -90,20 +70,21 @@ def test_rpilcdmenu_write4bits_transfers_data_through_GPIO():
         lcd.delayMicroseconds = Mock()
         lcd.pulseEnable = Mock()
 
+        # 0x123 is masked to a byte (0x23); pins_db[i] -> data line DB(4 + i).
+        # RS is driven, then the high nibble, then the low nibble.
         lcd.write4bits(0x123)
         assert RPi_mock.GPIO.output.mock_calls == [
             call(1, False),
+            # high nibble of 0x23: DB4..DB7 = 0,0,1,0
             call(3, False),
-            call(4, False),
+            call(4, True),
             call(5, False),
             call(6, False),
-            call(6, True),
+            # low nibble of 0x23: DB4..DB7 = 1,1,0,0
             call(3, True),
-            call(3, False),
-            call(4, False),
+            call(4, True),
             call(5, False),
             call(6, False),
-            call(3, True)
         ]
 
 

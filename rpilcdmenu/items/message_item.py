@@ -13,7 +13,7 @@ class MessageItem(MenuItem):
         :ivar RpiLCDMenu menu: The menu which this item belongs to
         :ivar bool scrollable: is scrolling allowed
         """
-        super(MessageItem, self).__init__(text, menu)
+        super().__init__(text, menu)
 
         self.view = MessageView(menu, message, scrollable)
 

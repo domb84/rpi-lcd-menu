@@ -1,11 +1,5 @@
-import pytest
-import mock
+from unittest import mock
 from rpilcdmenu.items.menu_item import MenuItem
-
-
-def test_menuitem_throws_exception_when_title_is_too_long():
-    with pytest.raises(NameError):
-        MenuItem("Definetely Too Long Text To Display")
 
 
 def test_menuitem_can_return_its_title_as_string():

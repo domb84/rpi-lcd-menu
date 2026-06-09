@@ -1,175 +1,134 @@
 import queue
 import threading
-from time import sleep
+from time import monotonic, sleep
 
 from rpilcdmenu.base_menu import BaseMenu
 from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
 
+LCD_COLUMNS = 16
+LCD_SECOND_LINE = 0xC0  # DDRAM address of the start of the second line
+
 
 class RpiLCDMenu(BaseMenu):
-    def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None, scrolling_menu=False):
+    # Pacing for autoscroll, in seconds. SCROLL_HOLD is how long the first
+    # frame stays on screen before scrolling starts; SCROLL_INTERVAL is the
+    # period of each subsequent scroll step. Both are total per-frame times:
+    # the worker subtracts the time spent rendering the frame so the on-screen
+    # cadence matches these values rather than (render_time + value). Both run
+    # on the worker thread so callers never block. Tune these to taste.
+    SCROLL_HOLD = 1.0
+    SCROLL_INTERVAL = 0.075
+
+    def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
+                 scrolling_menu=False, start_worker=True):
         """
         Initialize menu
         """
-        self.lcd_queue = queue.Queue(maxsize=0)
+        super().__init__()
+
         self.scrolling_menu = scrolling_menu
+        self.lcd_queue = queue.Queue()
 
-        self.pin_rs = pin_rs
-        self.pin_e = pin_e
-        self.pins_db = pins_db
-        self.GPIO = GPIO
+        # Build and initialise the display up front (on this thread) so there is
+        # no window where self.lcd is missing while the worker spins up.
+        self.lcd = RpiLCDHwd(pin_rs, pin_e, pins_db, GPIO)
+        self.lcd.initDisplay()
+        self.clearDisplay()  # clear once in case of existing corruption
 
-        # start the worker thread
-        threading.Thread(target=self.lcd_queue_processor).start()
-
-        super(self.__class__, self).__init__()
+        self.worker = None
+        if start_worker:
+            self.worker = threading.Thread(target=self._lcd_queue_processor, daemon=True)
+            self.worker.start()
 
     def clearDisplay(self):
         """
         Clear LCD Screen
         """
-        self.lcd.write4bits(RpiLCDHwd.LCD_CLEARDISPLAY)  # command to clear display
-        self.lcd.delayMicroseconds(3000)  # 3000 microsecond sleep, clearing the display takes a long time
+        self.lcd.write4bits(RpiLCDHwd.LCD_CLEARDISPLAY)
+        self.lcd.delayMicroseconds(3000)  # clearing the display takes a long time
 
         return self
 
     def lcd_render(self, render_text):
-        i = 0
-        lines = 0
-
-        # return home rather than clear the display
+        """Render a pre-formatted "<line1>\n<line2>" string to the display."""
+        # Return home rather than clear, to avoid the long clear-display delay
+        # and the flicker it causes.
         self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
 
         for char in render_text:
             if char == '\n':
-                self.lcd.write4bits(0xC0)  # next line
-                i = 0
-                lines += 1
+                self.lcd.write4bits(LCD_SECOND_LINE)
             else:
                 self.lcd.write4bits(ord(char), True)
-                i = i + 1
-
-            if i == 16:
-                self.lcd.write4bits(0xC0)  # last char of the line
 
     def message(self, text, autoscroll=False):
-        """ Send long string to LCD. Long single line messages are split and scrolled if autoscroll is set.
-        else the are split and cropped."""
+        """Show text on the display.
 
-        # clear the existing lcd queue
-        with self.lcd_queue.mutex:
-            self.lcd_queue.queue.clear()
+        A single line longer than the display is split across both lines. When
+        ``autoscroll`` is set, lines longer than the display scroll right to
+        left; otherwise they are cropped.
+        """
+        self._clear_queue()
 
-        try:
-            splitlines = text.split('\n')
-
-            # process a single line
-            if len(splitlines) < 2:
-                line1 = splitlines[0]
-
-                # if there's one line and its longer than 16 characters, split it onto line 2
-                len1 = len(line1)
-                if len1 > 16:
-                    #  // will return an integer
-                    half = (len1 // 2)
-                    # find the next space after half the string and split at the character after it
-                    split = line1.find(' ', half) + 1
-                    # split it in half
-                    line2 = line1[split:]
-                    line1 = line1[0:split]
-                    # pad out to length of line 1
-                    line2 = line2.ljust(len(line1), ' ')
-                else:
-                    #  line 2 is nothing if line1 is not more than 16 characters
-                    line2 = ''
-
-                # recalculate lengths for srcoller
-                len1 = len(line1)
-                len2 = len(line2)
-                final_text = ("%s\n%s" % (line1, line2))
-
-            # process 2 lines
-            elif len(splitlines) == 2:
-                # set lengths for scroller but other wise leave the text
-                len1 = len(splitlines[0])
-                len2 = len(splitlines[1])
-                # pad out short lines
-                line1 = "{:<16}".format(splitlines[0])
-                line2 = "{:<16}".format(splitlines[1])
-                final_text = ("%s\n%s" % (line1, line2))
-
+        frames = self.build_frames(text, autoscroll)
+        scrolling = len(frames) > 1
+        for index, frame in enumerate(frames):
+            if not scrolling:
+                delay = 0.0
+            elif index == 0:
+                delay = self.SCROLL_HOLD
             else:
-                # TODO process more than 2 lines. Currently they just get cropped.
-                len1 = len(splitlines[0])
-                len2 = len(splitlines[1])
-                # pad out short lines
-                line1 = "{:<16}".format(splitlines[0])
-                line2 = "{:<16}".format(splitlines[1])
-                final_text = ("%s\n%s" % (line1, line2))
+                delay = self.SCROLL_INTERVAL
+            self.lcd_queue.put((frame, delay))
 
-            # scroll messages
-            if autoscroll == True:
-                # add one to the longest length so it scrolls off screen
-                if len1 < len2:
-                    text_length = len2
-                else:
-                    text_length = len1
+        return self
 
-                # render for 16x2
-                fixed_text = self.render_16x2(final_text)
-                # render the output
-                self.lcd_queue.put((self.lcd_render, fixed_text))
+    def build_frames(self, text, autoscroll=False):
+        """Return the list of 16x2 frame strings needed to display ``text``."""
+        final_text, len1, len2 = self._layout(text)
+        frames = [self.render_16x2(final_text)]
 
-                # only scroll if needed
-                if text_length > 16:
+        text_length = max(len1, len2)
+        if not autoscroll or text_length <= LCD_COLUMNS:
+            return frames
 
-                    # add one to the longest length so it scrolls off screen
-                    text_length = text_length + 1
+        # Scroll the text off to the left, then bring it back from the right.
+        for index in range(1, text_length + 1):
+            frames.append(self.render_16x2(final_text, index))
+        for index in range(LCD_COLUMNS):
+            frames.append(self.render_16x2_reverse(final_text, index))
+        frames.append(self.render_16x2(final_text))
 
-                    # show the text for one second
-                    sleep(1)
+        return frames
 
-                    # scroll the message right to left
-                    # start 1 character in as we've already rendered the first character
-                    for index in range(1, text_length):
-                        # render at 16x2
-                        fixed_text = self.render_16x2(final_text, index)
+    def _layout(self, text):
+        """Normalise ``text`` to a "<line1>\n<line2>" string plus raw lengths.
 
-                        # render the output
-                        self.lcd_queue.put((self.lcd_render, fixed_text))
+        The lengths are the unpadded line lengths, used to decide how far to
+        scroll.
+        """
+        lines = text.split('\n')
 
-                    # scroll the rest of the way
-                    for index in range(0, 16):
-                        # render at 16x2
-                        fixed_text = self.render_16x2_reverse(final_text, index)
-
-                        # render the output
-                        self.lcd_queue.put((self.lcd_render, fixed_text))
-
-                    # render for 16x2
-                    fixed_text = self.render_16x2(final_text)
-
-                    # render the output
-                    self.lcd_queue.put((self.lcd_render, fixed_text))
-
-                return self
-
+        if len(lines) == 1:
+            line1 = lines[0]
+            if len(line1) > LCD_COLUMNS:
+                # split on the first space past the midpoint, keeping words whole
+                split = line1.find(' ', len(line1) // 2) + 1
+                line2 = line1[split:].ljust(len(line1[:split]))
+                line1 = line1[:split]
             else:
-                # just show the text if theres no autoscroll
-                fixed_text = self.render_16x2(final_text)
+                line2 = ''
+        else:
+            # Two (or more, cropped to two) explicit lines, padded to width.
+            line1, line2 = lines[0], lines[1]
 
-                # render the output
-                self.lcd_queue.put((self.lcd_render, fixed_text))
-
-                return self
-
-
-        except Exception as e:
-            print("Autoscroll error: %s" % e)
+        len1, len2 = len(line1), len(line2)
+        final_text = f"{line1.ljust(LCD_COLUMNS)}\n{line2.ljust(LCD_COLUMNS)}"
+        return final_text, len1, len2
 
     def displayTestScreen(self):
         """
-        Display test screen to see if your LCD screen is wokring
+        Display test screen to see if your LCD screen is working
         """
         self.message('Hum. body 36,6\xDFC\nThis is test')
 
@@ -182,87 +141,54 @@ class RpiLCDMenu(BaseMenu):
         if len(self.items) == 0:
             self.message('Menu is empty')
             return self
-        elif len(self.items) <= 2:
-            options = (self.current_option == 0 and ">" or " ") + self.items[0].text
+
+        if len(self.items) <= 2:
+            options = (">" if self.current_option == 0 else " ") + self.items[0].text
             if len(self.items) == 2:
-                options += "\n" + (self.current_option == 1 and ">" or " ") + self.items[1].text
-            # print(options)
-            if self.scrolling_menu == True:
-                self.message(options, autoscroll=True)
-            else:
-                self.message(options)
-            return self
-
-        options = ">" + self.items[self.current_option].text
-
-        if self.current_option + 1 < len(self.items):
-            options += "\n " + self.items[self.current_option + 1].text
+                options += "\n" + (">" if self.current_option == 1 else " ") + self.items[1].text
         else:
-            options += "\n " + self.items[0].text
+            options = ">" + self.items[self.current_option].text
+            next_option = (self.current_option + 1) % len(self.items)
+            options += "\n " + self.items[next_option].text
 
-        if self.scrolling_menu == True:
-            self.message(options, autoscroll=True)
-        else:
-            self.message(options)
-
+        self.message(options, autoscroll=self.scrolling_menu)
         return self
 
     def render_16x2(self, text, index=0):
-
-        # incoming text will already have been cleaned up and split with a line break
-        # by the message function
-        try:
-            # render incoming text as 16x2 by taking the starting index and adding 16
-            # for each line
-            lines = text.split('\n')
-            line1 = lines[0]
-            line2 = lines[1]
-
-            # render from index to 16 characters in
-            last_char = index + 16
-
-            # # pad out the text if its less than 16 characters  long
-            line1_vfd = "{:<16}".format(line1[index:last_char])
-            line2_vfd = "{:<16}".format(line2[index:last_char])
-
-            return ("%s\n%s" % (line1_vfd, line2_vfd))
-
-
-        except Exception as e:
-            print("Render error: %s" % e)
+        """Left-justified 16x2 frame, sliced from ``index`` (forward scroll)."""
+        return self._slice_frame(text, slice(index, index + LCD_COLUMNS), '<')
 
     def render_16x2_reverse(self, text, index=0):
+        """Right-justified 16x2 frame, showing ``[:index]`` (reverse scroll)."""
+        return self._slice_frame(text, slice(0, index), '>')
 
-        # incoming text will already have been cleaned up and split with a line break
-        # by the message function
+    def _slice_frame(self, text, window, align):
+        # Incoming text has already been cleaned up and split with a line break
+        # by _layout(), so it always has (at least) two lines.
+        lines = text.split('\n')
+        line1 = f"{lines[0][window]:{align}{LCD_COLUMNS}}"
+        line2 = f"{lines[1][window]:{align}{LCD_COLUMNS}}"
+        return f"{line1}\n{line2}"
+
+    def _clear_queue(self):
+        """Drop any frames still waiting to be rendered."""
         try:
-            # render incoming text as 16x2 but right justified. ie add padding to the left.
-            # only useful for the reverse scroll
-            lines = text.split('\n')
-            line1 = lines[0]
-            line2 = lines[1]
-            # pad out the text if its less than 16 characters long from the left
-            line1_vfd = "{:>16}".format(line1[0:index])
-            line2_vfd = "{:>16}".format(line2[0:index])
+            while True:
+                self.lcd_queue.get_nowait()
+                self.lcd_queue.task_done()
+        except queue.Empty:
+            pass
 
-            return ("%s\n%s" % (line1_vfd, line2_vfd))
-
-
-        except Exception as e:
-            print("Render error: %s" % e)
-
-    def lcd_queue_processor(self):
-
-        self.lcd = RpiLCDHwd(self.pin_rs, self.pin_e, self.pins_db, self.GPIO)
-        self.lcd.initDisplay()
-
-        # clear it once in case of existing corruption
-        self.clearDisplay()
-
-        # process the queue
+    def _lcd_queue_processor(self):
         while True:
-            items = self.lcd_queue.get()
-            func = items[0]
-            args = items[1:]
-            func(*args)
-
+            frame, delay = self.lcd_queue.get()
+            start = monotonic()
+            self.lcd_render(frame)
+            self.lcd_queue.task_done()
+            # ``delay`` is the desired total time the frame is on screen, so
+            # discount the time already spent rendering it. If rendering took
+            # longer than ``delay`` we just move on with no extra sleep.
+            if delay:
+                remaining = delay - (monotonic() - start)
+                if remaining > 0:
+                    sleep(remaining)

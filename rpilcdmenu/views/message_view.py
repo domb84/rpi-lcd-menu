@@ -18,7 +18,7 @@ class MessageView(RpiLCDSubMenu):
 
         self.setText(text)
 
-        super(MessageView, self).__init__(base_menu)
+        super().__init__(base_menu)
 
     def render(self):
         """

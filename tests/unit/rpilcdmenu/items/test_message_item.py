@@ -1,4 +1,4 @@
-from mock import Mock, MagicMock, patch
+from unittest.mock import Mock, MagicMock, patch
 from rpilcdmenu.items.message_item import MessageItem
 
 

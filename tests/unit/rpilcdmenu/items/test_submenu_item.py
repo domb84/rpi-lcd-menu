@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 from rpilcdmenu.items.submenu_item import SubmenuItem
 
 

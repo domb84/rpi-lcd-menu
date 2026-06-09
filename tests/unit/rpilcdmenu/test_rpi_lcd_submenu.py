@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 
 from rpilcdmenu.rpi_lcd_submenu import RpiLCDSubMenu
 

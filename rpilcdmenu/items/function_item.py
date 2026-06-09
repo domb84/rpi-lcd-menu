@@ -13,7 +13,7 @@ class FunctionItem(MenuItem):
         :ivar dict kwargs: An optional dictionary of keyword arguments to be passed to the function
         :ivar RpiLCDMenu menu: The menu which this item belongs to
         """
-        super(FunctionItem, self).__init__(text=text, menu=menu)
+        super().__init__(text=text, menu=menu)
 
         self.function = function
 

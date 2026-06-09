@@ -1,4 +1,4 @@
-class MenuItem(object):
+class MenuItem:
     """
     A generic menu item
     """
@@ -17,7 +17,7 @@ class MenuItem(object):
         self.menu = menu
 
     def __str__(self):
-        return "%s" % self.text
+        return str(self.text)
 
     def show(self, index):
         """
@@ -29,7 +29,7 @@ class MenuItem(object):
         :return: The representation of the item to be shown in a menu
         :rtype: str
         """
-        return "%d - %s" % (index + 1, self.text)
+        return f"{index + 1} - {self.text}"
 
     def set_up(self):
         """
