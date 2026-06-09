@@ -17,7 +17,7 @@ class RpiLCDMenu(BaseMenu):
     # cadence matches these values rather than (render_time + value). Both run
     # on the worker thread so callers never block. Tune these to taste.
     SCROLL_HOLD = 1.0
-    SCROLL_INTERVAL = 0.1
+    SCROLL_INTERVAL = 0.075
 
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
                  scrolling_menu=False, start_worker=True):
