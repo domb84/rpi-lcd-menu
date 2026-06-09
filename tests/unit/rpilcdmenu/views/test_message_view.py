@@ -1,4 +1,4 @@
-from mock import call, Mock, MagicMock, patch
+from unittest.mock import call, Mock, MagicMock, patch
 from rpilcdmenu.views.message_view import MessageView
 
 

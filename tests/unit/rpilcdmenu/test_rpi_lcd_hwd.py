@@ -1,7 +1,7 @@
 import pytest
 import sys
 import datetime
-from mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, MagicMock, patch, call
 
 from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
 

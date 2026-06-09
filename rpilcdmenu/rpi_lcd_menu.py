@@ -17,7 +17,7 @@ class RpiLCDMenu(BaseMenu):
     # cadence matches these values rather than (render_time + value). Both run
     # on the worker thread so callers never block. Tune these to taste.
     SCROLL_HOLD = 1.0
-    SCROLL_INTERVAL = 0.05
+    SCROLL_INTERVAL = 0.1
 
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
                  scrolling_menu=False, start_worker=True):
@@ -123,7 +123,7 @@ class RpiLCDMenu(BaseMenu):
             line1, line2 = lines[0], lines[1]
 
         len1, len2 = len(line1), len(line2)
-        final_text = "%s\n%s" % (line1.ljust(LCD_COLUMNS), line2.ljust(LCD_COLUMNS))
+        final_text = f"{line1.ljust(LCD_COLUMNS)}\n{line2.ljust(LCD_COLUMNS)}"
         return final_text, len1, len2
 
     def displayTestScreen(self):
@@ -166,10 +166,9 @@ class RpiLCDMenu(BaseMenu):
         # Incoming text has already been cleaned up and split with a line break
         # by _layout(), so it always has (at least) two lines.
         lines = text.split('\n')
-        fmt = "{:" + align + str(LCD_COLUMNS) + "}"
-        line1 = fmt.format(lines[0][window])
-        line2 = fmt.format(lines[1][window])
-        return "%s\n%s" % (line1, line2)
+        line1 = f"{lines[0][window]:{align}{LCD_COLUMNS}}"
+        line2 = f"{lines[1][window]:{align}{LCD_COLUMNS}}"
+        return f"{line1}\n{line2}"
 
     def _clear_queue(self):
         """Drop any frames still waiting to be rendered."""

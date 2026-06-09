@@ -1,12 +1,12 @@
-class BaseMenu(object):
+class BaseMenu:
     """
     A generic menu
     """
     def __init__(self, parent=None):
         """
-        Initialzie basic menu
+        Initialize basic menu
         """
-        self.items = list()
+        self.items = []
         self.parent = parent
         self.current_option = 0
         self.selected_option = -1
@@ -27,10 +27,10 @@ class BaseMenu(object):
         """
         for item in self.items:
             if hasattr(item, 'submenu') and isinstance(item.submenu, BaseMenu):
-                print("|" + "--" * (level + 1) + "[" + "%s" % (item.__str__()) + "]")
-                item.submenu.debug(level+1)
+                print(f"|{'--' * (level + 1)}[{item}]")
+                item.submenu.debug(level + 1)
             else:
-                print("|" + "--" * level + ">" + "%s" % (item.__str__()))
+                print(f"|{'--' * level}>{item}")
         return self
 
     def append_item(self, item):

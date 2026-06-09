@@ -1,5 +1,5 @@
 import pytest
-from mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, MagicMock, patch, call
 from rpilcdmenu.rpi_lcd_menu import RpiLCDMenu
 
 

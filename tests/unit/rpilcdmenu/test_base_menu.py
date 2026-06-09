@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 from rpilcdmenu.base_menu import BaseMenu
 
 def test_basemenu_can_be_initialized_entered_and_exited():
