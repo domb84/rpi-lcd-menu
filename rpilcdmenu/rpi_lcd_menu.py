@@ -1,6 +1,6 @@
 import queue
 import threading
-from time import sleep
+from time import monotonic, sleep
 
 from rpilcdmenu.base_menu import BaseMenu
 from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
@@ -12,10 +12,12 @@ LCD_SECOND_LINE = 0xC0  # DDRAM address of the start of the second line
 class RpiLCDMenu(BaseMenu):
     # Pacing for autoscroll, in seconds. SCROLL_HOLD is how long the first
     # frame stays on screen before scrolling starts; SCROLL_INTERVAL is the
-    # gap between subsequent frames. Both run on the worker thread so callers
-    # never block. Tune these to taste.
+    # period of each subsequent scroll step. Both are total per-frame times:
+    # the worker subtracts the time spent rendering the frame so the on-screen
+    # cadence matches these values rather than (render_time + value). Both run
+    # on the worker thread so callers never block. Tune these to taste.
     SCROLL_HOLD = 1.0
-    SCROLL_INTERVAL = 0.15
+    SCROLL_INTERVAL = 0.05
 
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
                  scrolling_menu=False, start_worker=True):
@@ -181,7 +183,13 @@ class RpiLCDMenu(BaseMenu):
     def _lcd_queue_processor(self):
         while True:
             frame, delay = self.lcd_queue.get()
+            start = monotonic()
             self.lcd_render(frame)
             self.lcd_queue.task_done()
+            # ``delay`` is the desired total time the frame is on screen, so
+            # discount the time already spent rendering it. If rendering took
+            # longer than ``delay`` we just move on with no extra sleep.
             if delay:
-                sleep(delay)
+                remaining = delay - (monotonic() - start)
+                if remaining > 0:
+                    sleep(remaining)

@@ -1,3 +1,4 @@
+import pytest
 from mock import Mock, MagicMock, patch, call
 from rpilcdmenu.rpi_lcd_menu import RpiLCDMenu
 
@@ -18,6 +19,10 @@ def _frame(line1, line2=""):
 
 def _queued_frames(menu):
     return [frame for frame, _delay in list(menu.lcd_queue.queue)]
+
+
+def _queued_delays(menu):
+    return [delay for _frame, delay in list(menu.lcd_queue.queue)]
 
 
 @patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
@@ -141,3 +146,106 @@ def test_rpilcdmenu_render_multiple_items_rewind_menu(LCDHwdMock):
     menu.render()
 
     assert _queued_frames(menu) == [_frame(">item3", " item1")]
+
+
+# --- autoscroll ------------------------------------------------------------
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_rpilcdmenu_message_autoscroll_generates_scroll_frames(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+
+    menu.message("ABCDEFGHIJKLMNOPQRST\nx", autoscroll=True)  # line1 is 20 chars
+
+    frames = _queued_frames(menu)
+    # frame 0 + one forward frame per character (range 1..len) + 16 reverse
+    # frames bringing it back + a final frame returning to the start.
+    assert len(frames) == 20 + 16 + 2
+    # First frame shows the left-aligned start of the text...
+    assert frames[0] == _frame("ABCDEFGHIJKLMNOP", "x")
+    # ...the next has scrolled one character to the left...
+    assert frames[1] == _frame("BCDEFGHIJKLMNOPQ", "")
+    # ...and the sequence ends back where it started so it can loop cleanly.
+    assert frames[-1] == frames[0]
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_rpilcdmenu_message_autoscroll_paces_frames(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+
+    menu.message("ABCDEFGHIJKLMNOPQRST\nx", autoscroll=True)
+
+    delays = _queued_delays(menu)
+    # First frame is held longer; every subsequent frame uses the scroll step.
+    assert delays[0] == menu.SCROLL_HOLD
+    assert set(delays[1:]) == {menu.SCROLL_INTERVAL}
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_rpilcdmenu_message_does_not_scroll_when_text_fits(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+
+    menu.message("short\nalso short", autoscroll=True)
+
+    # Nothing is longer than the display, so there is a single frame with no
+    # pacing delay even though autoscroll was requested.
+    assert _queued_frames(menu) == [_frame("short", "also short")]
+    assert _queued_delays(menu) == [0.0]
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_rpilcdmenu_message_clears_pending_frames(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+
+    menu.message("first")
+    menu.message("second")
+
+    # A new message drops whatever was still queued from the previous one.
+    assert _queued_frames(menu) == [_frame("second")]
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_rpilcdmenu_render_autoscrolls_when_scrolling_menu_enabled(LCDHwdMock):
+    menu = _menu(LCDHwdMock, scrolling_menu=True)
+    menu.append_item(_item("a really long menu item that overflows"))
+
+    menu.render()
+
+    # The long item produces a scrolling sequence rather than a single frame.
+    assert len(_queued_frames(menu)) > 1
+
+
+# --- worker pacing ---------------------------------------------------------
+
+class _StopLoop(Exception):
+    """Sentinel used to break the worker's infinite loop in tests."""
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.sleep')
+@patch('rpilcdmenu.rpi_lcd_menu.monotonic')
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_worker_subtracts_render_time_from_delay(LCDHwdMock, monotonic_mock, sleep_mock):
+    menu = _menu(LCDHwdMock)
+    menu.lcd_queue = Mock()
+    menu.lcd_queue.get.side_effect = [("frame\nframe", 0.2), _StopLoop()]
+    monotonic_mock.side_effect = [10.0, 10.05]  # rendering took 50ms
+
+    with pytest.raises(_StopLoop):
+        menu._lcd_queue_processor()
+
+    # Slept only for the remainder of the 0.2s step, not the full 0.2s.
+    sleep_mock.assert_called_once_with(pytest.approx(0.15))
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.sleep')
+@patch('rpilcdmenu.rpi_lcd_menu.monotonic')
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_worker_skips_sleep_when_render_outlasts_delay(LCDHwdMock, monotonic_mock, sleep_mock):
+    menu = _menu(LCDHwdMock)
+    menu.lcd_queue = Mock()
+    menu.lcd_queue.get.side_effect = [("frame\nframe", 0.2), _StopLoop()]
+    monotonic_mock.side_effect = [10.0, 10.5]  # rendering overran the 0.2s step
+
+    with pytest.raises(_StopLoop):
+        menu._lcd_queue_processor()
+
+    sleep_mock.assert_not_called()
