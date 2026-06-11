@@ -124,12 +124,27 @@ class RpiLCDHwd:
 
         return self
 
+    def display_off(self):
+        """Turn off the display without clearing DDRAM content."""
+        if self.displaycontrol is None:
+            return self
+        self.displaycontrol &= ~self.LCD_DISPLAYON
+        self.write4bits(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+        self.display_toggle = 'off'
+        return self
+
+    def display_on(self):
+        """Turn on the display, restoring content from DDRAM."""
+        if self.displaycontrol is None:
+            return self
+        self.displaycontrol |= self.LCD_DISPLAYON
+        self.write4bits(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+        self.display_toggle = 'on'
+        return self
+
     def displayToggle(self):
         if self.display_toggle == 'on':
-            self.write4bits(self.LCD_CLEARDISPLAY | self.LCD_DISPLAYOFF)
-            self.display_toggle = 'off'
+            self.display_off()
         else:
-            self.initDisplay()
-            self.display_toggle = 'on'
-
+            self.display_on()
         return self

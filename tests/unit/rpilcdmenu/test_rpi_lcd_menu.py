@@ -249,3 +249,97 @@ def test_worker_skips_sleep_when_render_outlasts_delay(LCDHwdMock, monotonic_moc
         menu._lcd_queue_processor()
 
     sleep_mock.assert_not_called()
+
+
+# --- display toggle ---------------------------------------------------------
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_display_off_sets_flag_and_calls_hardware(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+
+    menu.display_off()
+
+    assert menu._display_off is True
+    menu.lcd.display_off.assert_called_once()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_display_on_clears_flag_and_calls_hardware(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu._display_off = True
+
+    menu.display_on()
+
+    assert menu._display_off is False
+    menu.lcd.display_on.assert_called_once()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_display_on_rerenders_last_frame(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu._display_off = True
+    menu._last_frame = _frame("hello")
+    menu.lcd_render = Mock()
+
+    menu.display_on()
+
+    menu.lcd_render.assert_called_once_with(_frame("hello"))
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_display_on_skips_rerender_when_no_last_frame(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu._display_off = True
+    menu.lcd_render = Mock()
+
+    menu.display_on()
+
+    menu.lcd_render.assert_not_called()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_toggle_display_turns_off_when_on(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+
+    menu.toggle_display()
+
+    assert menu._display_off is True
+    menu.lcd.display_off.assert_called_once()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_toggle_display_turns_on_when_off(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu._display_off = True
+
+    menu.toggle_display()
+
+    assert menu._display_off is False
+    menu.lcd.display_on.assert_called_once()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_worker_skips_lcd_render_when_display_is_off(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu._display_off = True
+    menu.lcd_queue = Mock()
+    menu.lcd_queue.get.side_effect = [(_frame("hello"), 0.0), _StopLoop()]
+    menu.lcd_render = Mock()
+
+    with pytest.raises(_StopLoop):
+        menu._lcd_queue_processor()
+
+    menu.lcd_render.assert_not_called()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_worker_tracks_last_frame_when_display_is_on(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu.lcd_queue = Mock()
+    frame = _frame("hello")
+    menu.lcd_queue.get.side_effect = [(frame, 0.0), _StopLoop()]
+
+    with pytest.raises(_StopLoop):
+        menu._lcd_queue_processor()
+
+    assert menu._last_frame == frame
