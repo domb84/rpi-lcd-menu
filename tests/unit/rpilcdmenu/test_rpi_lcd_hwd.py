@@ -113,3 +113,59 @@ def test_rpilcdmenu_pulseEnable_is_blinking_pin_e():
         lcd.pulseEnable()
 
         assert RPi_mock.GPIO.output.mock_calls == [call(2, False), call(2, True), call(2, False)]
+
+
+def _lcd_with_mock():
+    RPi_mock = Mock()
+    RPi_mock.GPIO = MagicMock()
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+        lcd.write4bits = Mock()
+        lcd.displaycontrol = RpiLCDHwd.LCD_DISPLAYON | RpiLCDHwd.LCD_CURSOROFF | RpiLCDHwd.LCD_BLINKOFF
+        return lcd
+
+
+def test_display_off_sends_displaycontrol_command_with_display_bit_cleared():
+    lcd = _lcd_with_mock()
+
+    lcd.display_off()
+
+    lcd.write4bits.assert_called_once_with(
+        RpiLCDHwd.LCD_DISPLAYCONTROL | RpiLCDHwd.LCD_CURSOROFF | RpiLCDHwd.LCD_BLINKOFF
+    )
+    assert lcd.display_toggle == 'off'
+
+
+def test_display_on_sends_displaycontrol_command_with_display_bit_set():
+    lcd = _lcd_with_mock()
+    lcd.displaycontrol = RpiLCDHwd.LCD_CURSOROFF | RpiLCDHwd.LCD_BLINKOFF  # display bit cleared
+
+    lcd.display_on()
+
+    lcd.write4bits.assert_called_once_with(
+        RpiLCDHwd.LCD_DISPLAYCONTROL | RpiLCDHwd.LCD_DISPLAYON | RpiLCDHwd.LCD_CURSOROFF | RpiLCDHwd.LCD_BLINKOFF
+    )
+    assert lcd.display_toggle == 'on'
+
+
+def test_display_off_is_noop_before_init():
+    lcd = _lcd_with_mock()
+    lcd.displaycontrol = None
+
+    lcd.display_off()
+
+    lcd.write4bits.assert_not_called()
+
+
+def test_displayToggle_delegates_to_display_off_and_display_on():
+    lcd = _lcd_with_mock()
+    lcd.display_off = Mock(return_value=lcd)
+    lcd.display_on = Mock(return_value=lcd)
+
+    lcd.display_toggle = 'on'
+    lcd.displayToggle()
+    lcd.display_off.assert_called_once()
+
+    lcd.display_toggle = 'off'
+    lcd.displayToggle()
+    lcd.display_on.assert_called_once()

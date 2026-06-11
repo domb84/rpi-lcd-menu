@@ -1,4 +1,6 @@
+import os
 import queue
+import socket
 import threading
 from time import monotonic, sleep
 
@@ -7,6 +9,7 @@ from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
 
 LCD_COLUMNS = 16
 LCD_SECOND_LINE = 0xC0  # DDRAM address of the start of the second line
+DEFAULT_SOCKET_PATH = '/tmp/rpi-lcd-menu.sock'
 
 
 class RpiLCDMenu(BaseMenu):
@@ -20,7 +23,8 @@ class RpiLCDMenu(BaseMenu):
     SCROLL_INTERVAL = 0.075
 
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
-                 scrolling_menu=False, start_worker=True):
+                 scrolling_menu=False, start_worker=True,
+                 socket_path=DEFAULT_SOCKET_PATH):
         """
         Initialize menu
         """
@@ -28,6 +32,9 @@ class RpiLCDMenu(BaseMenu):
 
         self.scrolling_menu = scrolling_menu
         self.lcd_queue = queue.Queue()
+        self._display_off = False
+        self._lcd_lock = threading.Lock()
+        self._last_frame = None
 
         # Build and initialise the display up front (on this thread) so there is
         # no window where self.lcd is missing while the worker spins up.
@@ -39,6 +46,8 @@ class RpiLCDMenu(BaseMenu):
         if start_worker:
             self.worker = threading.Thread(target=self._lcd_queue_processor, daemon=True)
             self.worker.start()
+            if socket_path and hasattr(socket, 'AF_UNIX'):
+                self._start_socket_server(socket_path)
 
     def clearDisplay(self):
         """
@@ -179,11 +188,78 @@ class RpiLCDMenu(BaseMenu):
         except queue.Empty:
             pass
 
+    def toggle_display(self):
+        """Toggle the display on or off. Safe to call from any thread."""
+        with self._lcd_lock:
+            if self._display_off:
+                self._display_off = False
+                self.lcd.display_on()
+                if self._last_frame is not None:
+                    self.lcd_render(self._last_frame)
+            else:
+                self._display_off = True
+                self.lcd.display_off()
+
+    def display_off(self):
+        """Turn off the display. Safe to call from any thread."""
+        with self._lcd_lock:
+            self._display_off = True
+            self.lcd.display_off()
+
+    def display_on(self):
+        """Turn on the display and re-render the last frame. Safe to call from any thread."""
+        with self._lcd_lock:
+            self._display_off = False
+            self.lcd.display_on()
+            if self._last_frame is not None:
+                self.lcd_render(self._last_frame)
+
+    def _start_socket_server(self, socket_path):
+        try:
+            os.unlink(socket_path)
+        except OSError:
+            pass
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(socket_path)
+        server.listen(1)
+        t = threading.Thread(target=self._socket_server_loop, args=(server,), daemon=True)
+        t.start()
+
+    def _socket_server_loop(self, server):
+        while True:
+            try:
+                conn, _ = server.accept()
+            except OSError:
+                break
+            try:
+                data = conn.recv(32).decode().strip()
+                if data == 'toggle':
+                    self.toggle_display()
+                    conn.sendall(b'ok\n')
+                elif data == 'off':
+                    self.display_off()
+                    conn.sendall(b'ok\n')
+                elif data == 'on':
+                    self.display_on()
+                    conn.sendall(b'ok\n')
+                elif data == 'status':
+                    conn.sendall(b'off\n' if self._display_off else b'on\n')
+            except Exception:
+                pass
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
     def _lcd_queue_processor(self):
         while True:
             frame, delay = self.lcd_queue.get()
             start = monotonic()
-            self.lcd_render(frame)
+            with self._lcd_lock:
+                if not self._display_off:
+                    self.lcd_render(frame)
+                    self._last_frame = frame
             self.lcd_queue.task_done()
             # ``delay`` is the desired total time the frame is on screen, so
             # discount the time already spent rendering it. If rendering took
