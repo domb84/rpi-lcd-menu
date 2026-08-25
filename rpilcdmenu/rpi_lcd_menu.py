@@ -92,6 +92,37 @@ class RpiLCDMenu(BaseMenu):
 
         return self
 
+    def create_char(self, location, bitmap):
+        """Define one of the 8 CGRAM glyphs. Safe to call from any thread.
+
+        Once defined, write ``chr(location)`` in a frame to draw it.
+        """
+        with self._lcd_lock:
+            self.lcd.create_char(location, bitmap)
+            # Whatever is on screen was drawn with the previous glyph set, so
+            # redraw it rather than leave a frame referring to glyphs that have
+            # just changed shape underneath it.
+            if self._last_frame is not None and not self._display_off:
+                self.lcd_render(self._last_frame)
+
+        return self
+
+    def render_frame(self, frame):
+        """Draw a ready-made "<line1>
+<line2>" frame straight away.
+
+        Bypasses build_frames()/the scroll queue: callers that already know the
+        exact 16x2 content (the level meter, which redraws continuously) want it
+        on screen now, not queued behind a scroll animation.
+        """
+        self._clear_queue()
+        with self._lcd_lock:
+            if not self._display_off:
+                self.lcd_render(frame)
+            self._last_frame = frame
+
+        return self
+
     def build_frames(self, text, autoscroll=False):
         """Return the list of 16x2 frame strings needed to display ``text``."""
         final_text, len1, len2 = self._layout(text)
