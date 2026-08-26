@@ -109,6 +109,28 @@ class RpiLCDHwd:
 
         return self
 
+    def create_char(self, location, bitmap):
+        """Define one of the 8 user characters in CGRAM.
+
+        ``location`` is 0-7 and becomes the character code you write to show it
+        (so chr(location) in a render string). ``bitmap`` is 8 rows of 5 pixels,
+        each an int whose low 5 bits are the row, top row first.
+
+        The HD44780 only has these 8 slots, so anything drawn from them has to
+        reuse the same glyphs across the screen -- fine for bar graphs, which is
+        what this exists for.
+        """
+        location &= 0x07
+        self.write4bits(self.LCD_SETCGRAMADDR | (location << 3))
+        for row in bitmap:
+            self.write4bits(row & 0x1F, True)
+
+        # Leave the controller addressing display RAM again, otherwise the next
+        # character written would land in CGRAM and corrupt the glyph.
+        self.write4bits(self.LCD_SETDDRAMADDR)
+
+        return self
+
     def delayMicroseconds(self, microseconds):
         sleep(microseconds / 1000000.0)
         return self
