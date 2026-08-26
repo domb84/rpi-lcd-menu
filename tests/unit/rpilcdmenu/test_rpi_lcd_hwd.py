@@ -169,3 +169,36 @@ def test_displayToggle_delegates_to_display_off_and_display_on():
     lcd.display_toggle = 'off'
     lcd.displayToggle()
     lcd.display_on.assert_called_once()
+
+
+def test_rpilcdmenu_pulseEnable_does_not_sleep():
+    # The whole point of the enable pulse being bare GPIO calls: sleep() has a
+    # floor of tens of microseconds however small a value you pass it, so three
+    # nominal 1us delays here used to dominate every byte written. Reintroducing
+    # one would quietly cost ~180us per nibble.
+    RPi_mock = Mock()
+    RPi_mock.GPIO = Mock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+        lcd.delayMicroseconds = Mock()
+
+        lcd.pulseEnable()
+
+        lcd.delayMicroseconds.assert_not_called()
+
+
+def test_rpilcdmenu_write4bits_still_paces_the_controller():
+    # The 37us an instruction needs to settle comes from here, not pulseEnable.
+    # Exactly one delay per byte, before the data goes out.
+    RPi_mock = Mock()
+    RPi_mock.GPIO = Mock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+        lcd.delayMicroseconds = Mock()
+
+        lcd.write4bits(0x23)
+
+        lcd.delayMicroseconds.assert_called_once_with(RpiLCDHwd.COMMAND_DELAY_US)
+        assert lcd.delayMicroseconds.call_args_list[0] == call(50)

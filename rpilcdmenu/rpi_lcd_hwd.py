@@ -136,13 +136,24 @@ class RpiLCDHwd:
         return self
 
     def pulseEnable(self):
-        # The enable pulse must be > 450ns and commands need > 37us to settle.
+        """Clock one nibble into the controller on the falling edge of E.
+
+        No explicit delays. The enable pulse must be held > 450ns, and a single
+        RPi.GPIO output call from Python already costs 1-2us, so consecutive
+        calls clear that by a wide margin without asking the kernel for a sleep
+        it cannot deliver: sleep() has a floor of tens of microseconds whatever
+        you pass it, so the three 1us delays that used to be here cost ~180us
+        per nibble and dominated the whole write.
+
+        The 37us an instruction needs to settle is not this function's job --
+        write4bits waits command_delay_us before each byte.
+
+        This is only safe while the GPIO calls are slow. Driving E from
+        something faster (pigpio waves, or C) would need real timing back.
+        """
         self.GPIO.output(self.pin_e, False)
-        self.delayMicroseconds(1)
         self.GPIO.output(self.pin_e, True)
-        self.delayMicroseconds(1)
         self.GPIO.output(self.pin_e, False)
-        self.delayMicroseconds(1)
 
         return self
 

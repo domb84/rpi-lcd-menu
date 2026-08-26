@@ -40,14 +40,14 @@ def test_rpilcdmenu_imports_gpio_and_initializes_with_clear_screen(LCDHwdMock):
 
 
 @patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
-def test_rpilcdmenu_lcd_render_returns_home_and_breaks_lines(LCDHwdMock):
+def test_rpilcdmenu_lcd_render_homes_the_cursor_and_breaks_lines(LCDHwdMock):
     menu = _menu(LCDHwdMock)
     menu.lcd.reset_mock()
 
     menu.lcd_render("ab\ncd")
 
     assert menu.lcd.write4bits.mock_calls == [
-        call(LCDHwdMock.LCD_RETURNHOME),
+        call(LCDHwdMock.LCD_SETDDRAMADDR),
         call(ord("a"), True),
         call(ord("b"), True),
         call(0xC0),
