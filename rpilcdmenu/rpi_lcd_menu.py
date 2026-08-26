@@ -60,9 +60,18 @@ class RpiLCDMenu(BaseMenu):
 
     def lcd_render(self, render_text):
         """Render a pre-formatted "<line1>\n<line2>" string to the display."""
-        # Return home rather than clear, to avoid the long clear-display delay
-        # and the flicker it causes.
-        self.lcd.write4bits(RpiLCDHwd.LCD_RETURNHOME)
+        # Move the cursor to position 0 rather than clearing, to avoid the long
+        # clear-display delay and the flicker it causes.
+        #
+        # Set-DDRAM-address, not return-home: both leave the cursor at 0, but
+        # return-home is a 1.52ms instruction where this one is 37us, and
+        # write4bits only waits command_delay_us (50us) before sending the next
+        # byte. That gap was 30x too short -- the controller ignores instructions
+        # while it is busy, so the opening characters of a frame were only
+        # surviving because the padding delays in pulseEnable happened to stretch
+        # the gap far enough. Return-home also resets the display shift, which
+        # nothing here uses: scrolling is done by re-rendering the text.
+        self.lcd.write4bits(RpiLCDHwd.LCD_SETDDRAMADDR)
 
         for char in render_text:
             if char == '\n':
