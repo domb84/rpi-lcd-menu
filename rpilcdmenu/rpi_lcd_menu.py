@@ -22,9 +22,22 @@ class RpiLCDMenu(BaseMenu):
     SCROLL_HOLD = 1.0
     SCROLL_INTERVAL = 0.075
 
+    # How many frames to render between hardware resyncs. There is no RW line,
+    # so a mistimed nibble can desync the 4-bit bus permanently -- see
+    # RpiLCDHwd.resync(). Nothing here can detect that has happened (the busy
+    # flag is unreadable and the controller never answers back), so instead of
+    # detecting it we simply re-run the handshake often enough that a desync
+    # costs a few bad frames rather than lasting until the process restarts.
+    #
+    # 600 frames is ~10s of the level meter's 60fps. A resync is ~7ms of
+    # instruction delays plus the CGRAM reload, so it drops about one frame in
+    # 600. Set to 0 to disable.
+    RESYNC_FRAME_INTERVAL = 600
+
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
                  scrolling_menu=False, start_worker=True,
-                 socket_path=DEFAULT_SOCKET_PATH):
+                 socket_path=DEFAULT_SOCKET_PATH,
+                 resync_interval=RESYNC_FRAME_INTERVAL):
         """
         Initialize menu
         """
@@ -35,6 +48,12 @@ class RpiLCDMenu(BaseMenu):
         self._display_off = False
         self._lcd_lock = threading.Lock()
         self._last_frame = None
+        self._resync_interval = resync_interval
+        self._frames_since_resync = 0
+        # Glyph definitions live in the controller's CGRAM. A desync can write
+        # garbage into it just as easily as into the screen, so keep a copy to
+        # reload from whenever we resync.
+        self._cgram = {}
 
         # Build and initialise the display up front (on this thread) so there is
         # no window where self.lcd is missing while the worker spins up.
@@ -51,15 +70,52 @@ class RpiLCDMenu(BaseMenu):
 
     def clearDisplay(self):
         """
-        Clear LCD Screen
+        Clear LCD Screen. Safe to call from any thread.
         """
-        self.lcd.write4bits(RpiLCDHwd.LCD_CLEARDISPLAY)
-        self.lcd.delayMicroseconds(3000)  # clearing the display takes a long time
+        with self._lcd_lock:
+            self.lcd.write4bits(RpiLCDHwd.LCD_CLEARDISPLAY)
+            self.lcd.delayMicroseconds(3000)  # clearing the display takes a long time
+            # Nothing is on screen now, so there is no frame to restore if the
+            # display is switched back on or the hardware is resynced.
+            self._last_frame = None
 
         return self
 
+    def resync_display(self):
+        """Re-run the 4-bit handshake and redraw. Safe to call from any thread.
+
+        Recovers a desynced bus without restarting the process. Callers that
+        know when the display switches between very different workloads (the
+        level meter starting or stopping, say) can call this at the boundary;
+        otherwise it happens on its own every RESYNC_FRAME_INTERVAL frames.
+        """
+        with self._lcd_lock:
+            self._resync_hardware()
+            if self._last_frame is not None and not self._display_off:
+                self.lcd_render(self._last_frame)
+
+        return self
+
+    def _resync_hardware(self):
+        """Resync the controller and restore CGRAM. Caller must hold the lock.
+
+        Deliberately does not redraw: every caller writes a full frame straight
+        afterwards, which is what actually clears the corruption off the screen.
+        """
+        self.lcd.resync()
+        for location, bitmap in self._cgram.items():
+            self.lcd.create_char(location, bitmap)
+        self._frames_since_resync = 0
+
     def lcd_render(self, render_text):
-        """Render a pre-formatted "<line1>\n<line2>" string to the display."""
+        """Render a pre-formatted "<line1>\n<line2>" string to the display.
+
+        Callers must hold ``_lcd_lock``.
+        """
+        if self._resync_interval and self._frames_since_resync >= self._resync_interval:
+            self._resync_hardware()
+        self._frames_since_resync += 1
+
         # Move the cursor to position 0 rather than clearing, to avoid the long
         # clear-display delay and the flicker it causes.
         #
@@ -107,6 +163,7 @@ class RpiLCDMenu(BaseMenu):
         Once defined, write ``chr(location)`` in a frame to draw it.
         """
         with self._lcd_lock:
+            self._cgram[location & 0x07] = bitmap
             self.lcd.create_char(location, bitmap)
             # Whatever is on screen was drawn with the previous glyph set, so
             # redraw it rather than leave a frame referring to glyphs that have

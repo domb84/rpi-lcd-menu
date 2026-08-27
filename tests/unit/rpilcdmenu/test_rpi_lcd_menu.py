@@ -343,3 +343,98 @@ def test_worker_tracks_last_frame_when_display_is_on(LCDHwdMock):
         menu._lcd_queue_processor()
 
     assert menu._last_frame == frame
+
+
+def _menu_with_resync(LCDHwdMock, interval):
+    LCDHwdMock.return_value = MagicMock()
+    return RpiLCDMenu(start_worker=False, resync_interval=interval)
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_lcd_render_resyncs_the_controller_every_interval_frames(LCDHwdMock):
+    menu = _menu_with_resync(LCDHwdMock, 3)
+    menu.lcd.reset_mock()
+
+    for _ in range(3):
+        menu.lcd_render(_frame("x"))
+    menu.lcd.resync.assert_not_called()
+
+    menu.lcd_render(_frame("x"))
+    menu.lcd.resync.assert_called_once()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_lcd_render_never_resyncs_when_the_interval_is_zero(LCDHwdMock):
+    menu = _menu_with_resync(LCDHwdMock, 0)
+    menu.lcd.reset_mock()
+
+    for _ in range(50):
+        menu.lcd_render(_frame("x"))
+
+    menu.lcd.resync.assert_not_called()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_resync_reloads_the_defined_glyphs(LCDHwdMock):
+    # CGRAM is as exposed to a desynced bus as the screen is, and the meter is
+    # drawn entirely out of it, so a resync that left the glyphs alone would
+    # leave the corruption in place.
+    menu = _menu_with_resync(LCDHwdMock, 600)
+    bitmap = [0x1F] * 8
+    menu.create_char(2, bitmap)
+    menu.lcd.reset_mock()
+
+    menu.resync_display()
+
+    menu.lcd.resync.assert_called_once()
+    menu.lcd.create_char.assert_called_once_with(2, bitmap)
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_resync_display_redraws_the_last_frame(LCDHwdMock):
+    menu = _menu_with_resync(LCDHwdMock, 600)
+    menu.render_frame(_frame("hello"))
+    menu.lcd.reset_mock()
+
+    menu.resync_display()
+
+    # Resyncing does not clear the screen, so the redraw is what actually gets
+    # the garbage off it.
+    assert call(ord("h"), True) in menu.lcd.write4bits.mock_calls
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_resync_display_does_not_redraw_while_the_display_is_off(LCDHwdMock):
+    menu = _menu_with_resync(LCDHwdMock, 600)
+    menu.render_frame(_frame("hello"))
+    menu.display_off()
+    menu.lcd.reset_mock()
+
+    menu.resync_display()
+
+    menu.lcd.resync.assert_called_once()
+    menu.lcd.write4bits.assert_not_called()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_clearDisplay_forgets_the_last_frame(LCDHwdMock):
+    menu = _menu_with_resync(LCDHwdMock, 600)
+    menu.render_frame(_frame("hello"))
+
+    menu.clearDisplay()
+
+    assert menu._last_frame is None
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_clearDisplay_takes_the_display_lock(LCDHwdMock):
+    # retrotuner-ui fires this off a threading.Timer, so it races the worker
+    # thread on the data pins unless it locks -- two writers is a guaranteed
+    # nibble desync.
+    menu = _menu_with_resync(LCDHwdMock, 600)
+    held = []
+    menu.lcd.write4bits.side_effect = lambda *a, **k: held.append(menu._lcd_lock.locked())
+
+    menu.clearDisplay()
+
+    assert held == [True]

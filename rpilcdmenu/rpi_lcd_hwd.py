@@ -1,4 +1,4 @@
-from time import sleep
+from time import perf_counter, sleep
 
 
 class RpiLCDHwd:
@@ -45,8 +45,17 @@ class RpiLCDHwd:
     # instructions; clear/home need ~1.5ms and are paced by their callers.
     COMMAND_DELAY_US = 50
 
+    # How long E is held high, and how long it is held low afterwards, in
+    # microseconds. The datasheet minimums are 450ns high and a 1us full cycle,
+    # so 1us for each satisfies both with margin. See pulseEnable().
+    ENABLE_PULSE_US = 1
+
+    # How long RETURNHOME and CLEARDISPLAY take to execute (~1.52ms).
+    LONG_COMMAND_DELAY_US = 2000
+
     def __init__(self, pin_rs=26, pin_e=19, pins_db=[13, 6, 5, 21], GPIO=None,
-                 command_delay_us=COMMAND_DELAY_US):
+                 command_delay_us=COMMAND_DELAY_US,
+                 enable_pulse_us=ENABLE_PULSE_US):
         """
         LCD GPIO configuration
         """
@@ -59,6 +68,7 @@ class RpiLCDHwd:
         self.pin_e = pin_e
         self.pins_db = pins_db
         self.command_delay_us = command_delay_us
+        self.enable_pulse_us = enable_pulse_us
 
         self.displaycontrol = None
         self.displayfunction = None
@@ -72,24 +82,58 @@ class RpiLCDHwd:
             self.GPIO.setup(pin, GPIO.OUT)
 
     def initDisplay(self):
-        # Power-on init needs generous settle times; normal writes do not, so
-        # these longer delays live here rather than in write4bits.
+        # Power-on init needs a generous settle time before the controller will
+        # accept anything. Everything after that is the same handshake resync()
+        # runs, so it lives there and can be repeated later.
         self.delayMicroseconds(15000)  # wait > 15ms after Vcc rises
+        return self.resync()
+
+    def resync(self):
+        """Re-run the 4-bit handshake, recovering from a lost nibble.
+
+        There is no RW line, so the busy flag can never be read and every delay
+        in this driver is a fixed guess. When one of those guesses is wrong the
+        controller misses (or gains) a nibble and the bus desyncs permanently:
+        every following byte is assembled from the low nibble of one write and
+        the high nibble of the next, so commands like "move to line 2" are never
+        seen and nothing recovers on its own.
+
+        The 0x33/0x32 sequence is the standard escape hatch. Between them they
+        put the nibbles 3, 3, 3, 2 on the bus. Whichever of the two possible
+        alignments the controller is on, some adjacent pair of those first three
+        reads as the byte 0x33 -- "function set, 8-bit" -- which puts it in
+        8-bit mode, where a byte is one nibble and alignment stops meaning
+        anything. The trailing 0x2 is then read as 0x20, "function set, 4-bit",
+        and it comes back into 4-bit mode in step with us.
+
+        DDRAM survives this, so the display keeps its contents. Callers should
+        redraw anyway, since whatever garbage prompted the resync is still on
+        screen. RETURNHOME at the end resets the display shift, which a spurious
+        shift command could otherwise have left set for good -- setting the
+        DDRAM address does not undo it.
+        """
         self.write4bits(0x33)  # initialization
         self.delayMicroseconds(4500)   # wait > 4.1ms
         self.write4bits(0x32)  # initialization
         self.delayMicroseconds(150)
-        self.write4bits(0x28)  # 2 line 5x7 matrix
-        self.write4bits(0x0C)  # turn cursor off 0x0E to enable cursor
-        self.write4bits(0x06)  # shift cursor right
 
-        self.displaycontrol = self.LCD_DISPLAYON | self.LCD_CURSOROFF | self.LCD_BLINKOFF
-        self.displayfunction = self.LCD_4BITMODE | self.LCD_1LINE | self.LCD_5x8DOTS
-        self.displayfunction |= self.LCD_2LINE
+        if self.displayfunction is None:
+            self.displayfunction = self.LCD_4BITMODE | self.LCD_5x8DOTS | self.LCD_2LINE
+        if self.displaycontrol is None:
+            self.displaycontrol = self.LCD_DISPLAYON | self.LCD_CURSOROFF | self.LCD_BLINKOFF
+        if self.displaymode is None:
+            # Default text direction (for romance languages)
+            self.displaymode = self.LCD_ENTRYLEFT | self.LCD_ENTRYSHIFTDECREMENT
 
-        # Initialize to default text direction (for romance languages)
-        self.displaymode = self.LCD_ENTRYLEFT | self.LCD_ENTRYSHIFTDECREMENT
-        self.write4bits(self.LCD_ENTRYMODESET | self.displaymode)  # set the entry mode
+        self.write4bits(self.LCD_FUNCTIONSET | self.displayfunction)  # 2 line 5x7 matrix
+        # Resend the current control and entry state rather than hardcoded
+        # defaults, so a resync while the display is switched off does not
+        # switch it back on behind the caller.
+        self.write4bits(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+        self.write4bits(self.LCD_ENTRYMODESET | self.displaymode)
+
+        self.write4bits(self.LCD_RETURNHOME)
+        self.delayMicroseconds(self.LONG_COMMAND_DELAY_US)
 
         return self
 
@@ -135,25 +179,46 @@ class RpiLCDHwd:
         sleep(microseconds / 1000000.0)
         return self
 
+    def busyWaitMicroseconds(self, microseconds):
+        """Spin for ``microseconds``, for waits too short to sleep through.
+
+        sleep() has a floor of tens of microseconds on Linux however small a
+        value it is given, so it cannot express a sub-microsecond hold at all.
+        Spinning on perf_counter() can: the loop costs a few hundred nanoseconds
+        an iteration and burns CPU rather than yielding it, which is the right
+        trade only for the ~1us holds in pulseEnable().
+        """
+        end = perf_counter() + microseconds / 1000000.0
+        while perf_counter() < end:
+            pass
+        return self
+
     def pulseEnable(self):
         """Clock one nibble into the controller on the falling edge of E.
 
-        No explicit delays. The enable pulse must be held > 450ns, and a single
-        RPi.GPIO output call from Python already costs 1-2us, so consecutive
-        calls clear that by a wide margin without asking the kernel for a sleep
-        it cannot deliver: sleep() has a floor of tens of microseconds whatever
-        you pass it, so the three 1us delays that used to be here cost ~180us
-        per nibble and dominated the whole write.
+        E must be held high > 450ns and the full cycle must be > 1us. Those
+        holds are busy-waits, not sleeps: sleep() cannot deliver a wait this
+        short (its floor is tens of microseconds, which is why the three nominal
+        1us delays that used to be here cost ~180us per nibble and dominated
+        every write), but leaving the edges unguarded does not work either.
+        Between those two versions this held E for exactly as long as one
+        RPi.GPIO output call happened to take -- 0.4-2us depending on CPU clock,
+        cache and contention, and shortest under sustained rendering, when the
+        governor is pinned at full clock. That is Python overhead, not a
+        guarantee, and undershooting it once desyncs the bus until resync().
+
+        Data setup ahead of the rising edge is covered by the GPIO call that
+        drives E low; the hold after the falling edge covers both data hold and
+        the minimum cycle time before the next nibble.
 
         The 37us an instruction needs to settle is not this function's job --
         write4bits waits command_delay_us before each byte.
-
-        This is only safe while the GPIO calls are slow. Driving E from
-        something faster (pigpio waves, or C) would need real timing back.
         """
         self.GPIO.output(self.pin_e, False)
         self.GPIO.output(self.pin_e, True)
+        self.busyWaitMicroseconds(self.enable_pulse_us)
         self.GPIO.output(self.pin_e, False)
+        self.busyWaitMicroseconds(self.enable_pulse_us)
 
         return self
 

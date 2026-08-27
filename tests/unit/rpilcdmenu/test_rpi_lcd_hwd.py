@@ -1,6 +1,7 @@
 import pytest
 import sys
 import datetime
+from time import perf_counter
 from unittest.mock import Mock, MagicMock, patch, call
 
 from rpilcdmenu.rpi_lcd_hwd import RpiLCDHwd
@@ -50,13 +51,51 @@ def test_rpilcdhwd_initDisplay_configures_proper_lcd_settings():
         lcd.initDisplay()
 
         assert lcd.write4bits.mock_calls == [
-            call(0x33),
-            call(0x32),
-            call(0x28),
-            call(0x0C),
-            call(0x06),
-            call(0x06),
+            call(0x33),           # force 8-bit, then
+            call(0x32),           # back down to 4-bit, in step
+            call(0x28),           # function set: 4-bit, 2 line, 5x8
+            call(0x0C),           # display on, cursor off, blink off
+            call(0x06),           # entry mode: left to right, no shift
+            call(0x02),           # return home, resetting the display shift
         ]
+
+
+def test_rpilcdhwd_resync_repeats_the_handshake_without_the_power_on_wait():
+    RPi_mock = Mock()
+    RPi_mock.GPIO = MagicMock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+
+        lcd.write4bits = Mock()
+        lcd.delayMicroseconds = Mock()
+        lcd.resync()
+
+        assert lcd.write4bits.mock_calls == [
+            call(0x33), call(0x32), call(0x28), call(0x0C), call(0x06), call(0x02),
+        ]
+        # The 15ms Vcc settle belongs to power-on only; a resync happens mid-run
+        # and would drop a frame for nothing.
+        assert call(15000) not in lcd.delayMicroseconds.mock_calls
+
+
+def test_rpilcdhwd_resync_does_not_switch_a_disabled_display_back_on():
+    # A resync while the display is off (the dimmer) must not undo that: it
+    # resends the control byte it already holds, not the power-on default.
+    RPi_mock = Mock()
+    RPi_mock.GPIO = MagicMock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+        lcd.initDisplay()
+        lcd.display_off()
+
+        lcd.write4bits = Mock()
+        lcd.resync()
+
+        assert call(RpiLCDHwd.LCD_DISPLAYCONTROL | RpiLCDHwd.LCD_CURSOROFF
+                    | RpiLCDHwd.LCD_BLINKOFF) in lcd.write4bits.mock_calls
+        assert lcd.display_toggle == 'off'
 
 
 def test_rpilcdmenu_write4bits_transfers_data_through_GPIO():
@@ -172,10 +211,9 @@ def test_displayToggle_delegates_to_display_off_and_display_on():
 
 
 def test_rpilcdmenu_pulseEnable_does_not_sleep():
-    # The whole point of the enable pulse being bare GPIO calls: sleep() has a
-    # floor of tens of microseconds however small a value you pass it, so three
-    # nominal 1us delays here used to dominate every byte written. Reintroducing
-    # one would quietly cost ~180us per nibble.
+    # The enable holds must be busy-waits: sleep() has a floor of tens of
+    # microseconds however small a value you pass it, so three nominal 1us
+    # delays here used to dominate every byte written -- ~180us per nibble.
     RPi_mock = Mock()
     RPi_mock.GPIO = Mock()
 
@@ -186,6 +224,36 @@ def test_rpilcdmenu_pulseEnable_does_not_sleep():
         lcd.pulseEnable()
 
         lcd.delayMicroseconds.assert_not_called()
+
+
+def test_rpilcdmenu_pulseEnable_holds_e_high_for_the_configured_time():
+    # ...but the pulse still has to be held. Without this the width is however
+    # long one GPIO call happens to take, which shortens under load and drops
+    # nibbles. Assert on the wait rather than the clock: a real timing
+    # measurement here would be flaky on a loaded CI box.
+    RPi_mock = Mock()
+    RPi_mock.GPIO = Mock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6], enable_pulse_us=3)
+        lcd.busyWaitMicroseconds = Mock()
+
+        lcd.pulseEnable()
+
+        # One hold with E high, one after the falling edge for the cycle time.
+        assert lcd.busyWaitMicroseconds.mock_calls == [call(3), call(3)]
+
+
+def test_rpilcdmenu_busyWaitMicroseconds_spins_for_at_least_the_requested_time():
+    RPi_mock = Mock()
+    RPi_mock.GPIO = Mock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+
+        start = perf_counter()
+        lcd.busyWaitMicroseconds(50)
+        assert perf_counter() - start >= 50 / 1000000.0
 
 
 def test_rpilcdmenu_write4bits_still_paces_the_controller():
