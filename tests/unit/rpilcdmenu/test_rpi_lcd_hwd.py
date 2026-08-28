@@ -270,3 +270,117 @@ def test_rpilcdmenu_write4bits_still_paces_the_controller():
 
         lcd.delayMicroseconds.assert_called_once_with(RpiLCDHwd.COMMAND_DELAY_US)
         assert lcd.delayMicroseconds.call_args_list[0] == call(50)
+
+
+def test_brightness_defaults_to_full():
+    lcd = _lcd_with_mock()
+
+    assert lcd.brightness == 100
+
+
+def test_set_brightness_folds_the_level_into_the_function_set():
+    # 0x28 is the function set already in force, so on a display without the
+    # attenuator these are a harmless re-issue of it.
+    lcd = _lcd_with_mock()
+    lcd.displayfunction = RpiLCDHwd.DEFAULT_DISPLAYFUNCTION
+
+    for percent, expected in ((100, 0x28), (75, 0x29), (50, 0x2A), (25, 0x2B)):
+        lcd.write4bits.reset_mock()
+        lcd.set_brightness(percent)
+        lcd.write4bits.assert_called_once_with(expected)
+        assert lcd.brightness == percent
+
+
+def test_set_brightness_refuses_levels_the_hardware_does_not_have():
+    # 60% does not exist. Rounding it to 50 would hide a hardware limit behind
+    # an API that looks continuous.
+    lcd = _lcd_with_mock()
+    lcd.displayfunction = RpiLCDHwd.DEFAULT_DISPLAYFUNCTION
+
+    for bad in (0, 10, 37, 60, 80, 99):
+        with pytest.raises(ValueError):
+            lcd.set_brightness(bad)
+
+    assert lcd.brightness == 100
+    lcd.write4bits.assert_not_called()
+
+
+def test_set_brightness_normalises_a_float_level_to_an_int():
+    # The socket parses its argument with float(), so 75.0 arrives here.
+    lcd = _lcd_with_mock()
+    lcd.displayfunction = RpiLCDHwd.DEFAULT_DISPLAYFUNCTION
+
+    lcd.set_brightness(75.0)
+
+    assert lcd.brightness == 75
+    assert isinstance(lcd.brightness, int)
+
+
+def test_set_brightness_keeps_the_rest_of_the_function_set():
+    # Clobbering the bus width or line count would take the display out with it.
+    lcd = _lcd_with_mock()
+    lcd.displayfunction = RpiLCDHwd.DEFAULT_DISPLAYFUNCTION
+
+    lcd.set_brightness(25)
+
+    assert lcd.displayfunction & ~RpiLCDHwd.LCD_BRIGHTNESS_MASK == \
+        RpiLCDHwd.DEFAULT_DISPLAYFUNCTION
+
+
+def test_set_brightness_rejects_values_off_the_scale():
+    lcd = _lcd_with_mock()
+    lcd.displayfunction = RpiLCDHwd.DEFAULT_DISPLAYFUNCTION
+
+    for bad in (-1, 101, 1000):
+        with pytest.raises(ValueError):
+            lcd.set_brightness(bad)
+    for bad in ('50', None, True):
+        with pytest.raises(TypeError):
+            lcd.set_brightness(bad)
+
+    assert lcd.brightness == 100      # nothing was applied
+
+
+def test_resync_preserves_brightness():
+    # Why brightness lives in displayfunction: resync() resends it every
+    # RESYNC_FRAME_INTERVAL frames, ~10s at 60fps.
+    RPi_mock = Mock()
+    RPi_mock.GPIO = MagicMock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+        lcd.initDisplay()
+        lcd.set_brightness(50)
+
+        lcd.write4bits = Mock()
+        lcd.resync()
+
+        assert call(0x2A) in lcd.write4bits.mock_calls
+        assert lcd.brightness == 50
+
+
+def test_brightness_set_before_init_is_applied_by_init():
+    RPi_mock = Mock()
+    RPi_mock.GPIO = MagicMock()
+
+    with patch.dict(sys.modules, {'RPi': RPi_mock, 'RPi.GPIO': Mock()}):
+        lcd = RpiLCDHwd(1, 2, [3, 4, 5, 6])
+        lcd.set_brightness(25)      # nothing on the bus yet to write to
+
+        lcd.write4bits = Mock()
+        lcd.initDisplay()
+
+        assert call(0x2B) in lcd.write4bits.mock_calls
+
+
+def test_brightness_survives_the_display_being_switched_off_and_on():
+    # Different registers: Function Set vs Display Control.
+    lcd = _lcd_with_mock()
+    lcd.displayfunction = RpiLCDHwd.DEFAULT_DISPLAYFUNCTION
+    lcd.set_brightness(50)
+
+    lcd.display_off()
+    lcd.display_on()
+
+    assert lcd.brightness == 50
+    assert lcd.displayfunction & RpiLCDHwd.LCD_BRIGHTNESS_MASK == 2

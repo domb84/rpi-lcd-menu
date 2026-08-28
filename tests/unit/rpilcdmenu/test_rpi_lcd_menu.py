@@ -438,3 +438,88 @@ def test_clearDisplay_takes_the_display_lock(LCDHwdMock):
     menu.clearDisplay()
 
     assert held == [True]
+
+
+def _socket_reply(menu, command):
+    """Drive one command through the socket server loop and return the reply."""
+    conn = Mock()
+    conn.recv.return_value = command.encode()
+    server = Mock()
+    server.accept.side_effect = [(conn, None), OSError]   # one client, then stop
+
+    menu._socket_server_loop(server)
+
+    return b''.join(c[0][0] for c in conn.sendall.call_args_list).decode().strip()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_set_brightness_takes_the_display_lock(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    held = []
+    menu.lcd.set_brightness.side_effect = lambda *a: held.append(menu._lcd_lock.locked())
+
+    menu.set_brightness(50)
+
+    assert held == [True]
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_set_brightness_passes_the_percentage_through(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+
+    menu.set_brightness(75)
+
+    menu.lcd.set_brightness.assert_called_once_with(75)
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_brightness_reads_through_to_the_driver(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu.lcd.brightness = 50
+
+    assert menu.brightness == 50
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_socket_brightness_query_returns_the_current_level(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu.lcd.brightness = 75
+
+    assert _socket_reply(menu, 'brightness') == '75'
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_socket_brightness_set_confirms_like_the_other_setters(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu.lcd.brightness = 100
+
+    assert _socket_reply(menu, 'brightness 50') == 'ok'
+    menu.lcd.set_brightness.assert_called_once_with(50.0)
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_socket_brightness_rejects_junk_without_dropping_the_connection(LCDHwdMock):
+    menu = _menu(LCDHwdMock)
+    menu.lcd.brightness = 100
+
+    assert _socket_reply(menu, 'brightness loud') == 'error'
+    menu.lcd.set_brightness.assert_not_called()
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_socket_brightness_reports_a_level_the_driver_refuses(LCDHwdMock):
+    # 60 parses fine but is not a level the hardware has.
+    menu = _menu(LCDHwdMock)
+    menu.lcd.brightness = 100
+    menu.lcd.set_brightness.side_effect = ValueError("not a level")
+
+    assert _socket_reply(menu, 'brightness 60') == 'error'
+
+
+@patch('rpilcdmenu.rpi_lcd_menu.RpiLCDHwd')
+def test_socket_status_still_works(LCDHwdMock):
+    # 'brightness' is matched before the prefix form; check neither shadows
+    # the verbs already there.
+    menu = _menu(LCDHwdMock)
+
+    assert _socket_reply(menu, 'status') == 'on'

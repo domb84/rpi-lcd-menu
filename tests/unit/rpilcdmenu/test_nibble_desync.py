@@ -49,6 +49,8 @@ class FakeHD44780:
         self.ddram = bytearray(b' ' * 0x80)
         self.cursor = LINE1_ADDR
         self.bytes_seen = []
+        # The VFD's attenuator; 0 is full brightness.
+        self.brightness_bits = 0
 
     # -- GPIO surface -----------------------------------------------------
     def setwarnings(self, _flag):
@@ -100,6 +102,8 @@ class FakeHD44780:
         if value & 0xE0 == 0x20:  # function set
             self.mode_8bit = bool(value & 0x10)
             self.pending = None
+            if not self.mode_8bit:
+                self.brightness_bits = value & 0x03
         elif value & 0x80:  # set DDRAM address
             self.cursor = value & 0x7F
         elif value & 0xFE == 0x02:  # return home
@@ -202,3 +206,39 @@ def test_resync_restores_the_glyphs_a_desync_may_have_corrupted(menu):
     during_resync = gpio.bytes_seen[mark:]
     start = during_resync.index((False, 0x40)) + 1
     assert [value for _rs, value in during_resync[start:start + 8]] == bitmap
+
+
+def test_brightness_reaches_the_panel_as_function_set_bits(menu):
+    menu, gpio = menu
+
+    menu.set_brightness(50)
+
+    assert (False, 0x2A) in gpio.bytes_seen
+    assert gpio.brightness_bits == 2
+
+
+def test_brightness_survives_the_periodic_resync(menu):
+    # Held anywhere but displayfunction, brightness would return to full on
+    # every resync -- ~10s at 60fps.
+    menu, gpio = menu
+    menu._resync_interval = 3
+    menu.set_brightness(25)
+
+    for _ in range(5):
+        menu.render_frame(_frame("playing", "a track"))
+
+    assert gpio.brightness_bits == 3
+    assert menu.brightness == 25
+
+
+def test_brightness_survives_a_desync_and_its_recovery(menu):
+    menu, gpio = menu
+    menu._resync_interval = 3
+    menu.set_brightness(75)
+
+    gpio.drop_next_nibble = True
+    for _ in range(5):
+        menu.render_frame(_frame("playing", "a track"))
+
+    assert gpio.screen() == ["playing         ", "a track         "]
+    assert gpio.brightness_bits == 1

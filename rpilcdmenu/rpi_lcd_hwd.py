@@ -41,6 +41,20 @@ class RpiLCDHwd:
     LCD_5x10DOTS = 0x04
     LCD_5x8DOTS = 0x00
 
+    # Function Set's bottom two bits are don't-cares on a genuine HD44780; this
+    # VFD reuses them as a brightness attenuator. Harmless on a module without
+    # the feature -- it just re-issues the function set already in force.
+    LCD_BRIGHTNESS_MASK = 0x03
+
+    # Every level the hardware has, brightest first; the index is the bit
+    # pattern. Two don't-care bits, so there is no finer control. Same four
+    # values Noritake (CU-U), Samsung (16T202DA1J) and Futaba document, though
+    # those take brightness as a data byte after Function Set rather than in it.
+    BRIGHTNESS_LEVELS = (100, 75, 50, 25)
+
+    # What this display runs and what resync() restores; brightness ORs in.
+    DEFAULT_DISPLAYFUNCTION = LCD_4BITMODE | LCD_5x8DOTS | LCD_2LINE
+
     # Time to let a normal command settle. The HD44780 needs ~37us for most
     # instructions; clear/home need ~1.5ms and are paced by their callers.
     COMMAND_DELAY_US = 50
@@ -74,6 +88,7 @@ class RpiLCDHwd:
         self.displayfunction = None
         self.displaymode = None
         self.display_toggle = 'on'
+        self.brightness = self.BRIGHTNESS_LEVELS[0]
 
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(self.pin_rs, GPIO.OUT)
@@ -118,7 +133,7 @@ class RpiLCDHwd:
         self.delayMicroseconds(150)
 
         if self.displayfunction is None:
-            self.displayfunction = self.LCD_4BITMODE | self.LCD_5x8DOTS | self.LCD_2LINE
+            self.displayfunction = self.DEFAULT_DISPLAYFUNCTION | self._brightness_bits()
         if self.displaycontrol is None:
             self.displaycontrol = self.LCD_DISPLAYON | self.LCD_CURSOROFF | self.LCD_BLINKOFF
         if self.displaymode is None:
@@ -219,6 +234,41 @@ class RpiLCDHwd:
         self.busyWaitMicroseconds(self.enable_pulse_us)
         self.GPIO.output(self.pin_e, False)
         self.busyWaitMicroseconds(self.enable_pulse_us)
+
+        return self
+
+    def _brightness_bits(self):
+        """The Function Set bit pattern for the current brightness."""
+        return self.BRIGHTNESS_LEVELS.index(self.brightness)
+
+    def set_brightness(self, percent):
+        """Set brightness to one of BRIGHTNESS_LEVELS: 100, 75, 50 or 25.
+
+        Anything else raises ValueError -- those four are the hardware, not a
+        driver convention. 25 is the dimmest step, not off; display_off() is a
+        separate register and the two do not disturb each other.
+
+        The bits live in displayfunction because resync() resends
+        LCD_FUNCTIONSET | displayfunction every ~10s at 60fps. Held anywhere
+        else, brightness would silently reset to full.
+        """
+        if isinstance(percent, bool) or not isinstance(percent, (int, float)):
+            raise TypeError("brightness must be a number, got %r" % (percent,))
+        if percent not in self.BRIGHTNESS_LEVELS:
+            raise ValueError("brightness must be one of %s, got %r"
+                             % (', '.join(str(l) for l in self.BRIGHTNESS_LEVELS),
+                                percent))
+
+        # 75.0 -> 75, so the readback is always an int.
+        self.brightness = self.BRIGHTNESS_LEVELS[self.BRIGHTNESS_LEVELS.index(percent)]
+
+        if self.displayfunction is None:
+            # Before initDisplay(); resync() folds the bits into the default.
+            return self
+
+        self.displayfunction &= ~self.LCD_BRIGHTNESS_MASK
+        self.displayfunction |= self._brightness_bits()
+        self.write4bits(self.LCD_FUNCTIONSET | self.displayfunction)
 
         return self
 
