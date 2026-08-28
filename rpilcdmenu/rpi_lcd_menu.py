@@ -297,6 +297,23 @@ class RpiLCDMenu(BaseMenu):
                 self._display_off = True
                 self.lcd.display_off()
 
+    @property
+    def brightness(self):
+        """The brightness percentage currently on the panel."""
+        return self.lcd.brightness
+
+    def set_brightness(self, percent):
+        """Set brightness. Safe to call from any thread.
+
+        One of RpiLCDHwd.BRIGHTNESS_LEVELS (100, 75, 50, 25); anything else
+        raises ValueError. Independent of display_off(): 25 is the dimmest
+        step, not off.
+        """
+        with self._lcd_lock:
+            self.lcd.set_brightness(percent)
+
+        return self
+
     def display_off(self):
         """Turn off the display. Safe to call from any thread."""
         with self._lcd_lock:
@@ -341,6 +358,15 @@ class RpiLCDMenu(BaseMenu):
                     conn.sendall(b'ok\n')
                 elif data == 'status':
                     conn.sendall(b'off\n' if self._display_off else b'on\n')
+                elif data == 'brightness':
+                    conn.sendall(('%d\n' % self.brightness).encode())
+                elif data.startswith('brightness '):
+                    try:
+                        self.set_brightness(float(data.split(None, 1)[1]))
+                    except (TypeError, ValueError):
+                        conn.sendall(b'error\n')
+                    else:
+                        conn.sendall(b'ok\n')
             except Exception:
                 pass
             finally:

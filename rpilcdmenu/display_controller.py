@@ -14,6 +14,9 @@ class DisplayController:
         ctrl.off()      # turn display off
         ctrl.on()       # turn display on
         ctrl.status()   # returns 'on' or 'off'
+
+        ctrl.brightness(50)   # 100, 75, 50 or 25 -- the only levels there are
+        ctrl.brightness()     # the level currently on the panel
     """
 
     def __init__(self, socket_path=DEFAULT_SOCKET_PATH):
@@ -41,3 +44,19 @@ class DisplayController:
     def status(self):
         """Return 'on' or 'off'."""
         return self._send('status')
+
+    def brightness(self, level=None):
+        """Get or set panel brightness.
+
+        No argument returns the current level as an int; with one, sets it and
+        returns 'ok'. Must be 100, 75, 50 or 25 -- all the hardware has -- and
+        raises ValueError otherwise. 25 is the dimmest step, not off.
+        """
+        if level is None:
+            return int(self._send('brightness'))
+
+        response = self._send('brightness %s' % (level,))
+        if response == 'error':
+            raise ValueError("brightness must be 100, 75, 50 or 25, got %r"
+                             % (level,))
+        return response
