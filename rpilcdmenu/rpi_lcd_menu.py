@@ -244,7 +244,9 @@ class RpiLCDMenu(BaseMenu):
         """
         Render menu
         """
-        if len(self.items) == 0:
+        # Clamps as well as tests: current_option may have been restored from a
+        # remembered position onto a menu that no longer has that many rows.
+        if self._selected_index() is None:
             self.message('Menu is empty')
             return self
 

@@ -54,14 +54,26 @@ class BaseMenu:
         """
         pass
 
+    def _selected_index(self):
+        """The row the cursor is on, pulled back into range, or None if empty.
+
+        current_option is public state that callers assign to directly -- a
+        remembered position restored onto a menu that has since lost items
+        leaves it past the end, where every items[] lookup raises IndexError
+        rather than just selecting the wrong row.
+        """
+        if not self.items:
+            self.current_option = 0
+            return None
+        self.current_option = max(0, min(self.current_option, len(self.items) - 1))
+        return self.current_option
+
     def processUp(self):
         """
         User triggered up event
         """
-        if self.current_option == 0:
-            self.current_option = len(self.items) - 1
-        else:
-            self.current_option -= 1
+        if self._selected_index() is not None:
+            self.current_option = (self.current_option - 1) % len(self.items)
         self.render()
         return self
 
@@ -69,10 +81,8 @@ class BaseMenu:
         """
         User triggered down event
         """
-        if self.current_option == len(self.items) - 1:
-            self.current_option = 0
-        else:
-            self.current_option += 1
+        if self._selected_index() is not None:
+            self.current_option = (self.current_option + 1) % len(self.items)
         self.render()
         return self
 
@@ -80,6 +90,9 @@ class BaseMenu:
         """
         User triggered enter event
         """
+        if self._selected_index() is None:
+            # Nothing to activate; render() already shows that the menu is empty.
+            return self
         action_result = self.items[self.current_option].action()
         if isinstance(action_result, BaseMenu):
             return action_result
